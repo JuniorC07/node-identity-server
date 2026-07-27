@@ -1,12 +1,11 @@
-import express from 'express'
+import express from 'express';
 
-const app = express()
+const app = express();
 
-app.use(express.json())
+app.use(express.json());
 
 app.get('/ping', (req, res) => {
-  res.json({ status: 'pong' })
-})
-
+  res.json({ status: 'pong' });
+});
 
 export default app;
