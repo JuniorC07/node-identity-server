@@ -11,7 +11,10 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "knex": "tsx ./node_modules/knex/bin/cli.js --knexfile src/adapters/database/knex/knexfile.ts",
+    "migrate:make": "npm run knex -- migrate:make",
+    "migrate:up": "npm run knex -- migrate:up"
   },
   "keywords": [],
   "author": "",
@@ -34,6 +37,8 @@
   },
   "dependencies": {
     "dotenv": "^17.4.2",
-    "express": "^5.2.1"
+    "express": "^5.2.1",
+    "knex": "^3.3.0",
+    "pg": "^8.22.0"
   }
 }
