@@ -7,7 +7,6 @@ export class CreateUserValidator {
     const result = schema.safeParse(data);
 
     if (!result.success) {
-      console.log();
       throw new BadRequestError({
         message: result.error.issues
           .map((issue) => `${issue.path.join('.')}: ${issue.message}`)

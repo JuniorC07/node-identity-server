@@ -1,28 +1,23 @@
-interface HttpErrorParams {
-  statusCode?: number;
-  message?: string;
+export interface AppErrorParams {
+  statusCode: number;
+  code: string;
+  message: string;
   details?: Record<string, unknown>;
-  name?: string;
 }
 
-export class HttpError extends Error {
+export class AppError extends Error {
   public readonly statusCode: number;
-  public readonly name: string;
+  public readonly code: string;
   public readonly details: Record<string, unknown>;
 
-  constructor({
-    statusCode = 500,
-    message = 'An error occurred',
-    name = 'generic_error',
-    details = {},
-  }: HttpErrorParams = {}) {
+  constructor({ statusCode, code, message, details = {} }: AppErrorParams) {
     super(message);
 
-    this.name = 'HttpError';
+    this.name = this.constructor.name;
     this.statusCode = statusCode;
-    this.name = name;
+    this.code = code;
     this.details = details;
 
-    Error.captureStackTrace(this, HttpError);
+    Error.captureStackTrace(this, this.constructor);
   }
 }

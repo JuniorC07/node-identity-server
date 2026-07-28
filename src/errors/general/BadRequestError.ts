@@ -1,6 +1,17 @@
-import { HttpError } from '@/errors/AppError.js';
+import { AppError } from '@/errors/AppError.js';
 
-export class BadRequestError extends HttpError {
-  statusCode = 400;
-  name = 'bad_request';
+interface BadRequestErrorParams {
+  message?: string;
+  details?: Record<string, unknown>;
+}
+
+export class BadRequestError extends AppError {
+  constructor({ message = 'Invalid request', details = {} }: BadRequestErrorParams = {}) {
+    super({
+      statusCode: 400,
+      code: 'bad_request',
+      message,
+      details,
+    });
+  }
 }

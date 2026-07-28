@@ -1,12 +1,12 @@
 import { type ErrorRequestHandler } from 'express';
 
-import { HttpError } from '@/errors/AppError.js';
+import { AppError } from '@/errors/AppError.js';
 
 export const errorHandler: ErrorRequestHandler = (error, _req, res, _next) => {
-  if (error instanceof HttpError) {
+  if (error instanceof AppError) {
     res.status(error.statusCode).json({
       message: error.message,
-      name: error.name,
+      name: error.code,
       details: error.details,
     });
 

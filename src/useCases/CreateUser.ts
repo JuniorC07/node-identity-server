@@ -1,9 +1,10 @@
 import { randomUUID } from 'node:crypto';
 
+import { Identity } from '@/entities/Identity.js';
 import { User } from '@/entities/User.js';
+import { UserAlreadyExistsError } from '@/errors/general/UserAlreadyExistsError.js';
 import type { IUsersRepository } from '@/repositories/IUsersRepository.js';
 import type { IPasswordHasher } from '@/services/IPasswordHasher.js';
-import { BadRequestError } from '@/errors/general/BadRequestError.js';
 
 export interface CreateUserInput {
   name: string | null;
@@ -12,33 +13,37 @@ export interface CreateUserInput {
   password: string;
 }
 
+export interface CreateUserOutput {
+  user: User;
+  identity: Identity;
+}
+
 export class CreateUser {
   constructor(
     private readonly usersRepository: IUsersRepository,
     private readonly passwordHasher: IPasswordHasher
   ) {}
 
-  async execute(input: CreateUserInput): Promise<User> {
-    const email = input?.email?.trim()?.toLowerCase() ?? null;
-    const login = input.login?.trim() ?? null;
+  async execute(input: CreateUserInput): Promise<CreateUserOutput> {
+    const email = input.email.trim().toLowerCase();
+    const login = input.login.trim();
 
-    if (email) {
-      const userByEmail = await this.usersRepository.findUserByEmail(email);
+    const userByEmail = await this.usersRepository.findUserByEmail(email);
 
-      if (userByEmail) {
-        throw new BadRequestError();
-      }
+    if (userByEmail) {
+      throw new UserAlreadyExistsError();
     }
 
-    if (login) {
-      const userByLogin = await this.usersRepository.findUserByLogin(login);
+    const identityByLogin = await this.usersRepository.findIdentityByProviderSubject(
+      'local',
+      login
+    );
 
-      if (userByLogin) {
-        throw new BadRequestError();
-      }
+    if (identityByLogin) {
+      throw new UserAlreadyExistsError();
     }
 
-    const passwordHash = input.password ? await this.passwordHasher.hash(input.password) : null;
+    const passwordHash = await this.passwordHasher.hash(input.password);
 
     const now = new Date();
 
@@ -46,14 +51,23 @@ export class CreateUser {
       id: randomUUID(),
       name: input.name,
       email,
-      login,
-      passwordHash,
       createdAt: now,
       updatedAt: now,
     });
 
-    await this.usersRepository.create(user);
+    const identity = new Identity({
+      id: randomUUID(),
+      userId: user.id,
+      provider: 'local',
+      providerSubject: login,
+      passwordHash,
+      providerEmail: email,
+      createdAt: now,
+      updatedAt: now,
+    });
 
-    return user;
+    await this.usersRepository.create(user, identity);
+
+    return { user, identity };
   }
 }
