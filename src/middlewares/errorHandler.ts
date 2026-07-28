@@ -6,7 +6,7 @@ export const errorHandler: ErrorRequestHandler = (error, _req, res, _next) => {
   if (error instanceof HttpError) {
     res.status(error.statusCode).json({
       message: error.message,
-      messageToken: error.messageToken,
+      name: error.name,
       details: error.details,
     });
 
@@ -17,7 +17,7 @@ export const errorHandler: ErrorRequestHandler = (error, _req, res, _next) => {
 
   res.status(500).json({
     message: 'An error occurred',
-    messageToken: 'generic_error',
+    name: 'generic_error',
     details: {},
   });
 };
