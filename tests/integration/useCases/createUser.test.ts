@@ -54,7 +54,23 @@ describe('POST /users', () => {
         id: response.body.id,
         name: 'John Doe',
         email: 'john@example.com',
-        login: 'john',
+      })
+    );
+    expect(persistedUser).not.toHaveProperty('login');
+    expect(persistedUser).not.toHaveProperty('password_hash');
+  });
+
+  it('should persist a local identity for the user', async () => {
+    const response = await request(app).post('/users').send(makeCreateUserInput());
+
+    const persistedIdentity = await db('identities').where({ user_id: response.body.id }).first();
+
+    expect(persistedIdentity).toEqual(
+      expect.objectContaining({
+        user_id: response.body.id,
+        provider: 'local',
+        provider_subject: 'john',
+        provider_email: 'john@example.com',
       })
     );
   });
@@ -63,15 +79,15 @@ describe('POST /users', () => {
     const password = 'supersecret123';
 
     const response = await request(app).post('/users').send(makeCreateUserInput({ password }));
-    const persistedUser = await db('users')
+    const persistedIdentity = await db('identities')
       .where({
-        id: response.body.id,
+        user_id: response.body.id,
       })
       .first();
 
-    expect(persistedUser.password_hash).toEqual(expect.any(String));
+    expect(persistedIdentity.password_hash).toEqual(expect.any(String));
 
-    expect(persistedUser.password_hash).not.toBe(password);
+    expect(persistedIdentity.password_hash).not.toBe(password);
   });
 
   it('should not create a user with duplicated email', async () => {
@@ -81,7 +97,8 @@ describe('POST /users', () => {
       .post('/users')
       .send(makeCreateUserInput({ login: 'john2' }));
 
-    expect(response.status).toBe(400);
+    expect(response.status).toBe(409);
+    expect(response.body.name).toBe('user_already_exists');
 
     const users = await db('users');
 
@@ -95,7 +112,8 @@ describe('POST /users', () => {
       .post('/users')
       .send(makeCreateUserInput({ email: 'another@example.com' }));
 
-    expect(response.status).toBe(400);
+    expect(response.status).toBe(409);
+    expect(response.body.name).toBe('user_already_exists');
 
     const users = await db('users');
 
@@ -151,7 +169,71 @@ describe('POST /users', () => {
         })
       );
 
+    expect(response.status).toBe(409);
+
+    const users = await db('users');
+    expect(users).toHaveLength(1);
+  });
+
+  it('should handle concurrent attempts with the same credentials', async () => {
+    const [firstResponse, secondResponse] = await Promise.all([
+      request(app).post('/users').send(makeCreateUserInput()),
+      request(app).post('/users').send(makeCreateUserInput()),
+    ]);
+
+    expect([firstResponse.status, secondResponse.status].sort()).toEqual([201, 409]);
+
+    const users = await db('users');
+    const identities = await db('identities');
+
+    expect(users).toHaveLength(1);
+    expect(identities).toHaveLength(1);
+  });
+
+  it('should not allow create user with password length < 12', async () => {
+    const password = '123456789';
+    const response = await request(app).post('/users').send(makeCreateUserInput({ password }));
+
     expect(response.status).toBe(400);
+    expect(response.body.name).toBe('bad_request');
+
+    const users = await db('users');
+    expect(users).toHaveLength(0);
+    expect(users).toHaveLength(0);
+  });
+
+  it('should not allow create user with password as undefined', async () => {
+    const password = undefined;
+    const response = await request(app).post('/users').send(makeCreateUserInput({ password }));
+
+    expect(response.status).toBe(400);
+    expect(response.body.name).toBe('bad_request');
+
+    const users = await db('users');
+    expect(users).toHaveLength(0);
+    expect(users).toHaveLength(0);
+  });
+
+  it('should not allow create user with password > 72 bytes', async () => {
+    const password = '🔐'.repeat(19); // 76 bytes
+
+    expect(Buffer.byteLength(password, 'utf8')).toBe(76);
+
+    const response = await request(app).post('/users').send(makeCreateUserInput({ password }));
+
+    expect(response.status).toBe(400);
+    expect(response.body.name).toBe('bad_request');
+
+    const users = await db('users');
+    expect(users).toHaveLength(0);
+  });
+
+  it('should allow create user with password of exactly 72 bytes', async () => {
+    const password = 'a'.repeat(72);
+
+    const response = await request(app).post('/users').send(makeCreateUserInput({ password }));
+
+    expect(response.status).toBe(201);
 
     const users = await db('users');
     expect(users).toHaveLength(1);
