@@ -11,7 +11,7 @@ export class BcryptPasswordHasher implements IPasswordHasher {
   private applyPepper(password: string): string {
     return this.pepper
       ? createHmac('sha256', this.pepper).update(password, 'utf8').digest('hex')
-      : '';
+      : password;
   }
 
   async hash(password: string): Promise<string> {
