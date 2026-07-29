@@ -30,6 +30,10 @@ class InMemoryUsersRepository implements IUsersRepository {
   async findUserByEmail(email: string): Promise<User | null> {
     return this.users.find((user) => user.email === email) ?? null;
   }
+
+  async findUserByUsername(username: string): Promise<User | null> {
+    return this.users.find((user) => user.username === username) ?? null;
+  }
 }
 
 class FakePasswordHasher implements IPasswordHasher {
@@ -57,16 +61,17 @@ describe('CreateUser', () => {
     const output = await createUser.execute({
       name: 'John Doe',
       email: ' JOHN@EXAMPLE.COM ',
-      login: ' john ',
+      username: ' John.Doe ',
       password: 'secret12345@',
     });
 
     expect(output.user.email).toBe('john@example.com');
+    expect(output.user.username).toBe('john.doe');
     expect(output.identity).toEqual(
       expect.objectContaining({
         userId: output.user.id,
         provider: 'local',
-        providerSubject: 'john',
+        providerSubject: 'john@example.com',
         providerEmail: 'john@example.com',
         passwordHash: 'hashed:secret12345@',
       })
@@ -80,23 +85,23 @@ describe('CreateUser', () => {
     const input = {
       name: 'John Doe',
       email: 'john@example.com',
-      login: 'john',
+      username: 'john',
       password: 'secret12345@',
     };
 
     await createUser.execute(input);
 
-    await expect(createUser.execute({ ...input, login: 'john2' })).rejects.toBeInstanceOf(
+    await expect(createUser.execute({ ...input, username: 'john2' })).rejects.toBeInstanceOf(
       UserAlreadyExistsError
     );
   });
 
-  it('should reject a local login already in use', async () => {
+  it('should reject a username already in use', async () => {
     const { createUser } = makeSut();
     const input = {
       name: 'John Doe',
       email: 'john@example.com',
-      login: 'john',
+      username: 'john',
       password: 'secret12345@',
     };
 

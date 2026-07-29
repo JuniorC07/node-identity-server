@@ -9,6 +9,7 @@ interface UserRow {
   id: string;
   name: string | null;
   email: string | null;
+  username: string;
   created_at: Date | string;
   updated_at: Date | string;
 }
@@ -38,6 +39,7 @@ export class KnexUsersRepository implements IUsersRepository {
           id: user.id,
           name: user.name,
           email: user.email,
+          username: user.username,
           created_at: user.createdAt,
           updated_at: user.updatedAt,
         });
@@ -79,11 +81,20 @@ export class KnexUsersRepository implements IUsersRepository {
     return user ? this.toDomain(user) : null;
   }
 
+  async findUserByUsername(username: string): Promise<User | null> {
+    const user = await this.db<UserRow>('users')
+      .whereRaw('lower(username) = ?', [username.toLowerCase()])
+      .first();
+
+    return user ? this.toDomain(user) : null;
+  }
+
   private toDomain(user: UserRow): User {
     return new User({
       id: user.id,
       name: user.name,
       email: user.email,
+      username: user.username,
       createdAt: new Date(user.created_at),
       updatedAt: new Date(user.updated_at),
     });

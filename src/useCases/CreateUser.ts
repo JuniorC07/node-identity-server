@@ -9,7 +9,7 @@ import type { IPasswordHasher } from '@/services/IPasswordHasher.js';
 export interface CreateUserInput {
   name: string | null;
   email: string;
-  login: string;
+  username: string;
   password: string;
 }
 
@@ -26,7 +26,7 @@ export class CreateUser {
 
   async execute(input: CreateUserInput): Promise<CreateUserOutput> {
     const email = input.email.trim().toLowerCase();
-    const login = input.login.trim();
+    const username = input.username.trim().toLowerCase();
 
     const userByEmail = await this.usersRepository.findUserByEmail(email);
 
@@ -34,12 +34,9 @@ export class CreateUser {
       throw new UserAlreadyExistsError();
     }
 
-    const identityByLogin = await this.usersRepository.findIdentityByProviderSubject(
-      'local',
-      login
-    );
+    const userByUsername = await this.usersRepository.findUserByUsername(username);
 
-    if (identityByLogin) {
+    if (userByUsername) {
       throw new UserAlreadyExistsError();
     }
 
@@ -51,6 +48,7 @@ export class CreateUser {
       id: randomUUID(),
       name: input.name,
       email,
+      username,
       createdAt: now,
       updatedAt: now,
     });
@@ -59,7 +57,7 @@ export class CreateUser {
       id: randomUUID(),
       userId: user.id,
       provider: 'local',
-      providerSubject: login,
+      providerSubject: email,
       passwordHash,
       providerEmail: email,
       createdAt: now,

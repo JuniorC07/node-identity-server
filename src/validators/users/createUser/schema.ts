@@ -3,7 +3,7 @@ import { z } from 'zod';
 export const schema = z.object({
   name: z.string().trim().min(2).max(255).optional().nullable().default(null),
   email: z.email().trim().max(255),
-  login: z.string().trim().min(3).max(70),
+  username: z.string().trim().min(3).max(50),
   password: z
     .string({
       error: (issue) =>

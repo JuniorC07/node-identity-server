@@ -9,7 +9,7 @@ function makeCreateUserInput(overrides: Partial<CreateUserInput> = {}): CreateUs
   return {
     name: 'John Doe',
     email: 'john@example.com',
-    login: 'john',
+    username: 'john',
     password: 'secret12345@',
     ...overrides,
   };
@@ -31,7 +31,7 @@ describe('POST /users', () => {
       id: expect.any(String),
       name: 'John Doe',
       email: 'john@example.com',
-      login: 'john',
+      username: 'john',
       createdAt: expect.any(String),
       updatedAt: expect.any(String),
     });
@@ -54,6 +54,7 @@ describe('POST /users', () => {
         id: response.body.id,
         name: 'John Doe',
         email: 'john@example.com',
+        username: 'john',
       })
     );
     expect(persistedUser).not.toHaveProperty('login');
@@ -69,7 +70,7 @@ describe('POST /users', () => {
       expect.objectContaining({
         user_id: response.body.id,
         provider: 'local',
-        provider_subject: 'john',
+        provider_subject: 'john@example.com',
         provider_email: 'john@example.com',
       })
     );
@@ -95,7 +96,7 @@ describe('POST /users', () => {
 
     const response = await request(app)
       .post('/users')
-      .send(makeCreateUserInput({ login: 'john2' }));
+      .send(makeCreateUserInput({ username: 'john2' }));
 
     expect(response.status).toBe(409);
     expect(response.body.name).toBe('user_already_exists');
@@ -105,7 +106,7 @@ describe('POST /users', () => {
     expect(users).toHaveLength(1);
   });
 
-  it('should not create a user with duplicated login', async () => {
+  it('should not create a user with duplicated username', async () => {
     await request(app).post('/users').send(makeCreateUserInput()).expect(201);
 
     const response = await request(app)
@@ -165,7 +166,7 @@ describe('POST /users', () => {
       .send(
         makeCreateUserInput({
           email: 'JOHN@EXAMPLE.COM',
-          login: 'john2',
+          username: 'john2',
         })
       );
 
@@ -188,6 +189,50 @@ describe('POST /users', () => {
 
     expect(users).toHaveLength(1);
     expect(identities).toHaveLength(1);
+  });
+
+  it('should normalize username to lowercase', async () => {
+    const response = await request(app)
+      .post('/users')
+      .send(makeCreateUserInput({ username: 'John.Doe' }));
+
+    expect(response.status).toBe(201);
+    expect(response.body.username).toBe('john.doe');
+
+    const persistedUser = await db('users').where({ id: response.body.id }).first();
+    expect(persistedUser.username).toBe('john.doe');
+  });
+
+  it('should not allow duplicated username with different casing', async () => {
+    await request(app)
+      .post('/users')
+      .send(makeCreateUserInput({ username: 'john.doe' }))
+      .expect(201);
+
+    const response = await request(app)
+      .post('/users')
+      .send(makeCreateUserInput({ email: 'another@example.com', username: 'JOHN.DOE' }));
+
+    expect(response.status).toBe(409);
+  });
+
+  it('should require username', async () => {
+    const input = makeCreateUserInput() as Partial<CreateUserInput>;
+    delete input.username;
+
+    const response = await request(app).post('/users').send(input);
+
+    expect(response.status).toBe(400);
+    expect(response.body.name).toBe('bad_request');
+  });
+
+  it('should reject username longer than 50 characters', async () => {
+    const response = await request(app)
+      .post('/users')
+      .send(makeCreateUserInput({ username: 'a'.repeat(51) }));
+
+    expect(response.status).toBe(400);
+    expect(response.body.name).toBe('bad_request');
   });
 
   it('should not allow create user with password length < 12', async () => {

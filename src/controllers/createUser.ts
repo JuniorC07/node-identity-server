@@ -10,13 +10,13 @@ export class CreateUserController {
   handle = async (req: Request, res: Response): Promise<void> => {
     const input = this.validator.validate(req.body);
 
-    const { user, identity } = await this.createUser.execute(input);
+    const { user } = await this.createUser.execute(input);
 
     res.status(201).json({
       id: user.id,
       name: user.name,
       email: user.email,
-      login: identity.providerSubject,
+      username: user.username,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
     });
