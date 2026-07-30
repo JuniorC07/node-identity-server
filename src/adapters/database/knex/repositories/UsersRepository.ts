@@ -64,17 +64,6 @@ export class KnexUsersRepository implements IUsersRepository {
     }
   }
 
-  async findIdentityByProviderSubject(
-    provider: IdentityProvider,
-    providerSubject: string
-  ): Promise<Identity | null> {
-    const identity = await this.db<IdentityRow>('identities')
-      .where({ provider, provider_subject: providerSubject })
-      .first();
-
-    return identity ? this.identityToDomain(identity) : null;
-  }
-
   async findUserByEmail(email: string): Promise<User | null> {
     const user = await this.db<UserRow>('users').where({ email }).first();
 

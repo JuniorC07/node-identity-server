@@ -16,17 +16,6 @@ class InMemoryUsersRepository implements IUsersRepository {
     this.identities.push(identity);
   }
 
-  async findIdentityByProviderSubject(
-    provider: IdentityProvider,
-    providerSubject: string
-  ): Promise<Identity | null> {
-    return (
-      this.identities.find(
-        (identity) => identity.provider === provider && identity.providerSubject === providerSubject
-      ) ?? null
-    );
-  }
-
   async findUserByEmail(email: string): Promise<User | null> {
     return this.users.find((user) => user.email === email) ?? null;
   }
