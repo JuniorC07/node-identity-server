@@ -1,12 +1,5 @@
 import knex from 'knex';
 
-import * as dotenv from 'dotenv';
-import { join } from 'node:path';
-
-dotenv.config({
-  path: join(import.meta.dirname, '../../../../.env'),
-});
-
 export const db = knex({
   client: process.env.DATABASE_CLIENT,
   connection: {

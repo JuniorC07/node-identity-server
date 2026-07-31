@@ -3,6 +3,8 @@ import * as dotenv from 'dotenv';
 import { join } from 'node:path';
 
 dotenv.config({
+  override: true,
+  quiet: true,
   path: join(import.meta.dirname, '../../../../.env'),
 });
 
