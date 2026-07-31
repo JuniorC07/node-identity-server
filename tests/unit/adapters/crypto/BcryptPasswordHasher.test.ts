@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { BcryptPasswordHasher } from '@/adapters/crypto/bcrypt/BcryptPasswordHasher.js';
+import { BcryptPasswordHasherService } from '@/adapters/crypto/bcrypt/BcryptPasswordHasherService.js';
 
-describe('BcryptPasswordHasher', () => {
+describe('BcryptPasswordHasherService', () => {
   it('should hash and verify a password without a pepper', async () => {
-    const hasher = new BcryptPasswordHasher('', 4);
+    const hasher = new BcryptPasswordHasherService('', 4);
     const hash = await hasher.hash('correct-password');
 
     await expect(hasher.verify('correct-password', hash)).resolves.toBe(true);
@@ -12,7 +12,7 @@ describe('BcryptPasswordHasher', () => {
   });
 
   it('should hash and verify a password with a pepper', async () => {
-    const hasher = new BcryptPasswordHasher('test-pepper', 4);
+    const hasher = new BcryptPasswordHasherService('test-pepper', 4);
     const hash = await hasher.hash('correct-password');
 
     await expect(hasher.verify('correct-password', hash)).resolves.toBe(true);

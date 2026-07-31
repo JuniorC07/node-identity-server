@@ -1,13 +1,13 @@
 import { sessionCookieConfig } from '@/config/sessionCookieConfig.js';
 import { ICookieSerializerService } from '@/services/ICookieSerializerService.js';
 import { CreateLocalSessionUseCase } from '@/useCases/sessions/CreateLocalSessionUseCase.js';
-import { CreateSessionValidator } from '@/validators/sessions/createSession/CreateSessionValidator.js';
+import { CreateLocalSessionValidator } from '@/validators/sessions/createSession/CreateLocalSessionValidator.js';
 import { type Request, type Response } from 'express';
 
 export class CreateLocalSessionController {
   constructor(
     private readonly createSessionUseCase: CreateLocalSessionUseCase,
-    private readonly validator: CreateSessionValidator,
+    private readonly validator: CreateLocalSessionValidator,
     private readonly cookieSerializerService: ICookieSerializerService
   ) {}
   handle = async (req: Request, res: Response): Promise<void> => {

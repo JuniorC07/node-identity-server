@@ -1,10 +1,10 @@
-import { CreateUser } from '@/useCases/CreateUser.js';
-import { CreateUserValidator } from '@/validators/users/createUser/index.js';
+import { CreateUserUseCase } from '@/useCases/users/CreateUserUseCase.js';
+import { CreateUserValidator } from '@/validators/users/createUser/CreateUserValidator.js';
 import { type Request, type Response } from 'express';
 
 export class CreateUserController {
   constructor(
-    private readonly createUser: CreateUser,
+    private readonly createUser: CreateUserUseCase,
     private readonly validator: CreateUserValidator
   ) {}
   handle = async (req: Request, res: Response): Promise<void> => {

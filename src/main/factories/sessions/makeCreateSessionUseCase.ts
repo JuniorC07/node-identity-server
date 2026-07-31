@@ -1,4 +1,4 @@
-import { BcryptPasswordHasher } from '@/adapters/crypto/bcrypt/BcryptPasswordHasher.js';
+import { BcryptPasswordHasherService } from '@/adapters/crypto/bcrypt/BcryptPasswordHasherService.js';
 import { SHA256SessionTokenService } from '@/adapters/crypto/sha256/SHA256SessionTokenService.js';
 import { db } from '@/adapters/database/knex/connection.js';
 import { KnexIdentitiesRepository } from '@/adapters/database/knex/repositories/IdentitiesRepository.js';
@@ -17,7 +17,7 @@ export function makeCreateLocalSessionUseCase(): CreateLocalSessionUseCase {
 
   const rounds = process.env.NODE_ENV === 'development' ? 1 : 14;
   const passwordPepper = process.env.PASSWORD_PEPPER ?? '';
-  const passwordHasher = new BcryptPasswordHasher(passwordPepper, rounds);
+  const passwordHasher = new BcryptPasswordHasherService(passwordPepper, rounds);
 
   return new CreateLocalSessionUseCase(identitiesRepository, sessionIssuerUseCase, passwordHasher);
 }

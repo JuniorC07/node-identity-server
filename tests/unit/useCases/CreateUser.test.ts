@@ -4,8 +4,8 @@ import { Identity } from '@/entities/Identity.js';
 import { User } from '@/entities/User.js';
 import { UserAlreadyExistsError } from '@/errors/general/UserAlreadyExistsError.js';
 import type { IUsersRepository } from '@/repositories/IUsersRepository.js';
-import type { IPasswordHasher } from '@/services/IPasswordHasher.js';
-import { CreateUser } from '@/useCases/CreateUser.js';
+import type { IPasswordHasherService } from '@/services/IPasswordHasherService.js';
+import { CreateUserUseCase } from '@/useCases/users/CreateUserUseCase.js';
 
 class InMemoryUsersRepository implements IUsersRepository {
   users: User[] = [];
@@ -25,7 +25,7 @@ class InMemoryUsersRepository implements IUsersRepository {
   }
 }
 
-class FakePasswordHasher implements IPasswordHasher {
+class FakePasswordHasher implements IPasswordHasherService {
   async hash(password: string): Promise<string> {
     return `hashed:${password}`;
   }
@@ -38,7 +38,7 @@ class FakePasswordHasher implements IPasswordHasher {
 function makeSut() {
   const usersRepository = new InMemoryUsersRepository();
   const passwordHasher = new FakePasswordHasher();
-  const createUser = new CreateUser(usersRepository, passwordHasher);
+  const createUser = new CreateUserUseCase(usersRepository, passwordHasher);
 
   return { createUser, usersRepository };
 }

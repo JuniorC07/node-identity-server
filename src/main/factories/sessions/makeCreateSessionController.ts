@@ -1,11 +1,11 @@
 import { CreateLocalSessionController } from '@/controllers/sessions/CreateLocalSessionController.js';
 import { makeCreateLocalSessionUseCase } from '@/main/factories/sessions/makeCreateSessionUseCase.js';
-import { CreateSessionValidator } from '@/validators/sessions/createSession/CreateSessionValidator.js';
-import { CookieSerializerService } from '@/adapters/cookies/cookie/CookieSerializer.js';
+import { CreateLocalSessionValidator } from '@/validators/sessions/createSession/CreateLocalSessionValidator.js';
+import { CookieSerializerService } from '@/adapters/cookies/cookie/CookieSerializerService.js';
 
 export function makeCreateLocalSessionController() {
   const useCase = makeCreateLocalSessionUseCase();
-  const validator = new CreateSessionValidator();
+  const validator = new CreateLocalSessionValidator();
   const cookieSerializerService = new CookieSerializerService();
 
   return new CreateLocalSessionController(useCase, validator, cookieSerializerService);

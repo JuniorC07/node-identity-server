@@ -4,7 +4,7 @@ import { Identity } from '@/entities/Identity.js';
 import { User } from '@/entities/User.js';
 import { UserAlreadyExistsError } from '@/errors/general/UserAlreadyExistsError.js';
 import type { IUsersRepository } from '@/repositories/IUsersRepository.js';
-import type { IPasswordHasher } from '@/services/IPasswordHasher.js';
+import type { IPasswordHasherService } from '@/services/IPasswordHasherService.js';
 
 export interface CreateUserInput {
   name: string | null;
@@ -18,10 +18,10 @@ export interface CreateUserOutput {
   identity: Identity;
 }
 
-export class CreateUser {
+export class CreateUserUseCase {
   constructor(
     private readonly usersRepository: IUsersRepository,
-    private readonly passwordHasher: IPasswordHasher
+    private readonly passwordHasher: IPasswordHasherService
   ) {}
 
   async execute(input: CreateUserInput): Promise<CreateUserOutput> {

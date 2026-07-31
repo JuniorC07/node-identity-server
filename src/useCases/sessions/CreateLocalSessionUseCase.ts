@@ -1,7 +1,7 @@
 import { dummyPasswordHash } from '@/config/dummyPasswordHash.js';
 import { InvalidCrendentialsError } from '@/errors/general/InvalidCrendentialsError.js';
 import type { IIdentitiesRepository } from '@/repositories/IIdentitiesRepository.js';
-import type { IPasswordHasher } from '@/services/IPasswordHasher.js';
+import type { IPasswordHasherService } from '@/services/IPasswordHasherService.js';
 import { SessionIssuerUseCase } from './_internal/SessionIssuerUseCase.js';
 
 export interface CreateLocalSessionInput {
@@ -20,7 +20,7 @@ export class CreateLocalSessionUseCase {
   constructor(
     private readonly identityRepository: IIdentitiesRepository,
     private readonly SessionIssuerUseCase: SessionIssuerUseCase,
-    private readonly passwordHasher: IPasswordHasher
+    private readonly passwordHasher: IPasswordHasherService
   ) {}
 
   async execute(input: CreateLocalSessionInput): Promise<CreateLocalSessionOutput> {

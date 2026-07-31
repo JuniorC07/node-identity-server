@@ -1,8 +1,8 @@
 import { createHmac } from 'node:crypto';
 import bcrypt from 'bcrypt';
-import { IPasswordHasher } from '@/services/IPasswordHasher.js';
+import { IPasswordHasherService } from '@/services/IPasswordHasherService.js';
 
-export class BcryptPasswordHasher implements IPasswordHasher {
+export class BcryptPasswordHasherService implements IPasswordHasherService {
   constructor(
     private readonly pepper = '',
     private readonly rounds = 12

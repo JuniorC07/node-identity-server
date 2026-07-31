@@ -1,9 +1,9 @@
-import { schema } from '@/validators/users/createUser/schema.js';
+import { schema } from '@/validators/sessions/createSession/CreateLocalSessionSchema.js';
 import { BadRequestError } from '@/errors/general/BadRequestError.js';
-import { CreateUserInput } from '@/useCases/CreateUser.js';
+import { CreateLocalSessionInput } from '@/useCases/sessions/CreateLocalSessionUseCase.js';
 
-export class CreateUserValidator {
-  validate(data: unknown): CreateUserInput {
+export class CreateLocalSessionValidator {
+  validate(data: unknown): CreateLocalSessionInput {
     const result = schema.safeParse(data);
 
     if (!result.success) {

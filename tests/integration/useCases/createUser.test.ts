@@ -3,7 +3,7 @@ import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { db } from '@/adapters/database/knex/connection.js';
 import app from '@/app.js';
-import { CreateUserInput } from '@/useCases/CreateUser.js';
+import { CreateUserInput } from '@/useCases/users/CreateUserUseCase.js';
 
 function makeCreateUserInput(overrides: Partial<CreateUserInput> = {}): CreateUserInput {
   return {

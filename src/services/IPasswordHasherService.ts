@@ -1,4 +1,4 @@
-export interface IPasswordHasher {
+export interface IPasswordHasherService {
   hash(password: string): Promise<string>;
   verify(password: string, hash: string): Promise<boolean>;
 }

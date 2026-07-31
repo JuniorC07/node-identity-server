@@ -4,8 +4,8 @@ import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { db } from '@/adapters/database/knex/connection.js';
 import app from '@/app.js';
-import { makeCreateUser } from '@/main/factories/useCases/makeCreateUser.js';
-import { CreateUserInput } from '@/useCases/CreateUser.js';
+import { makeCreateUser } from '@/main/factories/users/makeCreateUserUseCase.js';
+import { CreateUserInput } from '@/useCases/users/CreateUserUseCase.js';
 import { sessionCookieConfig } from '@/config/sessionCookieConfig.js';
 
 async function createUser(overrides: Partial<CreateUserInput> = {}): Promise<void> {
