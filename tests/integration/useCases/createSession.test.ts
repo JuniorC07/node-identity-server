@@ -4,7 +4,7 @@ import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { db } from '@/adapters/database/knex/connection.js';
 import app from '@/app.js';
-import { makeCreateUser } from '@/main/factories/users/makeCreateUserUseCase.js';
+import { makeCreateUser } from '@/main/factories/useCases/users/makeCreateUserUseCase.js';
 import { CreateUserInput } from '@/useCases/users/CreateUserUseCase.js';
 import { sessionCookieConfig } from '@/config/sessionCookieConfig.js';
 

@@ -1,6 +1,6 @@
 import { Router } from 'express';
 
-import { makeCreateLocalSessionController } from '@/main/factories/sessions/makeCreateSessionController.js';
+import { makeCreateLocalSessionController } from '@/main/factories/controllers/sessions/makeCreateSessionController.js';
 
 const sessionRoutes = Router();
 

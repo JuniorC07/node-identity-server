@@ -1,5 +1,5 @@
 import { CreateUserController } from '@/controllers/users/createUserController.js';
-import { makeCreateUser } from '@/main/factories/users/makeCreateUserUseCase.js';
+import { makeCreateUser } from '@/main/factories/useCases/users/makeCreateUserUseCase.js';
 import { CreateUserValidator } from '@/validators/users/createUser/CreateUserValidator.js';
 
 export function makeCreateUserController() {
