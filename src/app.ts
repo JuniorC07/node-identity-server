@@ -1,10 +1,11 @@
 import express from 'express';
-
-import { errorHandler } from '@/middlewares/errorHandler.js';
 import { routes } from '@/routes/index.js';
+import { makeErrorHandlerMiddleware } from './main/factories/middlewares/makeErrorHandlerMiddleware.js';
+import { makeHttpLoggerMiddleware } from './main/factories/middlewares/makeHttpLoggerMiddleware.js';
 
 const app = express();
 
+app.use(makeHttpLoggerMiddleware());
 app.use(express.json());
 
 app.get('/ping', (_req, res) => {
@@ -13,6 +14,6 @@ app.get('/ping', (_req, res) => {
 
 app.use(routes);
 
-app.use(errorHandler);
+app.use(makeErrorHandlerMiddleware());
 
 export default app;
