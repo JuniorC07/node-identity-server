@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { Identity, type IdentityProvider } from '@/entities/Identity.js';
+import { Identity } from '@/entities/Identity.js';
 import { User } from '@/entities/User.js';
 import { UserAlreadyExistsError } from '@/errors/general/UserAlreadyExistsError.js';
 import type { IUsersRepository } from '@/repositories/IUsersRepository.js';

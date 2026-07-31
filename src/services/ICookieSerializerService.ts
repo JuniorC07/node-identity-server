@@ -1,0 +1,11 @@
+export interface CookieOptions {
+  path: string;
+  httpOnly: boolean;
+  sameSite: boolean | 'lax' | 'strict' | 'none';
+  secure: boolean;
+  maxAge: number;
+}
+
+export interface ICookieSerializerService {
+  serialize(name: string, value: string, options: CookieOptions): string;
+}

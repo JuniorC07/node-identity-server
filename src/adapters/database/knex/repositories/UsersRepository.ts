@@ -88,19 +88,4 @@ export class KnexUsersRepository implements IUsersRepository {
       updatedAt: new Date(user.updated_at),
     });
   }
-
-  private identityToDomain(identity: IdentityRow): Identity {
-    const commonProps = {
-      id: identity.id,
-      userId: identity.user_id,
-      providerSubject: identity.provider_subject,
-      providerEmail: identity.provider_email,
-      createdAt: new Date(identity.created_at),
-      updatedAt: new Date(identity.updated_at),
-    };
-
-    return identity.provider === 'local'
-      ? new Identity({ ...commonProps, provider: 'local', passwordHash: identity.password_hash! })
-      : new Identity({ ...commonProps, provider: identity.provider, passwordHash: null });
-  }
 }
