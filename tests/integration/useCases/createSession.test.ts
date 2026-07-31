@@ -1,6 +1,7 @@
 import request from 'supertest';
 import * as cookie from 'cookie';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
+import { faker } from '@faker-js/faker';
 
 import { db } from '@/adapters/database/knex/connection.js';
 import app from '@/app.js';
@@ -11,10 +12,10 @@ import { sessionCookieConfig } from '@/config/sessionCookieConfig.js';
 async function createUser(overrides: Partial<CreateUserInput> = {}): Promise<void> {
   const useCase = makeCreateUser();
   await useCase.execute({
-    name: 'John Doe',
-    email: 'john@example.com',
-    username: 'john',
-    password: 'secret12345@',
+    name: faker.person.fullName(),
+    email: faker.internet.email(),
+    username: faker.internet.username(),
+    password: faker.internet.password(),
     ...overrides,
   });
 }
@@ -29,7 +30,7 @@ describe('POST /sessions', () => {
   });
 
   it('should return 401 with incorrect email but correct password', async () => {
-    await createUser({ email: 'example@test.com', password: 's3cretP4ssw0rd' });
+    await createUser({ password: 's3cretP4ssw0rd' });
     const response = await request(app).post('/sessions').send({
       identifier: 'example-incorrect@test.com',
       password: 's3cretP4ssw0rd',
@@ -40,7 +41,7 @@ describe('POST /sessions', () => {
   });
 
   it('should return 401 with incorrect password but correct email', async () => {
-    await createUser({ email: 'example@test.com', password: 's3cretP4ssw0rd' });
+    await createUser({ email: 'example@test.com' });
     const response = await request(app).post('/sessions').send({
       identifier: 'example@test.com',
       password: 'incorrect-password',
@@ -51,7 +52,7 @@ describe('POST /sessions', () => {
   });
 
   it('should return 401 with incorrect email and incorrect email', async () => {
-    await createUser({ email: 'example@test.com', password: 's3cretP4ssw0rd' });
+    await createUser();
     const response = await request(app).post('/sessions').send({
       identifier: 'example-incorrect@test.com',
       password: 'incorrect-password',
@@ -61,11 +62,17 @@ describe('POST /sessions', () => {
     expect(response.body.name).toBe('invalid_credentials');
   });
 
-  it('should return 201 with correct email and correct email', async () => {
-    await createUser({ email: 'example@test.com', password: 's3cretP4ssw0rd' });
+  it('should return 201 with correct email and correct password', async () => {
+    const testUser = {
+      name: faker.person.fullName(),
+      email: faker.internet.email(),
+      username: faker.internet.username(),
+      password: faker.internet.password(),
+    };
+    await createUser(testUser);
     const response = await request(app).post('/sessions').send({
-      identifier: 'example@test.com',
-      password: 's3cretP4ssw0rd',
+      identifier: testUser.email,
+      password: testUser.password,
     });
     const [rawCookie] = response.headers['set-cookie'] ?? [];
 

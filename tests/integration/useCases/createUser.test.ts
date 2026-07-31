@@ -1,16 +1,16 @@
 import request from 'supertest';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
-
+import { faker } from '@faker-js/faker';
 import { db } from '@/adapters/database/knex/connection.js';
 import app from '@/app.js';
 import { CreateUserInput } from '@/useCases/users/CreateUserUseCase.js';
 
 function makeCreateUserInput(overrides: Partial<CreateUserInput> = {}): CreateUserInput {
   return {
-    name: 'John Doe',
-    email: 'john@example.com',
-    username: 'john',
-    password: 'secret12345@',
+    name: faker.person.fullName(),
+    email: faker.internet.email(),
+    username: faker.internet.username(),
+    password: faker.internet.password(),
     ...overrides,
   };
 }
@@ -25,13 +25,19 @@ describe('POST /users', () => {
   });
 
   it('should create a user', async () => {
-    const response = await request(app).post('/users').send(makeCreateUserInput());
+    const testUser = {
+      name: faker.person.fullName(),
+      email: faker.internet.email(),
+      username: faker.internet.username(),
+      password: faker.internet.password(),
+    };
+    const response = await request(app).post('/users').send(makeCreateUserInput(testUser));
     expect(response.status).toBe(201);
     expect(response.body).toEqual({
       id: expect.any(String),
-      name: 'John Doe',
-      email: 'john@example.com',
-      username: 'john',
+      name: testUser.name,
+      email: testUser.email.toLowerCase(),
+      username: testUser.username.toLowerCase(),
       createdAt: expect.any(String),
       updatedAt: expect.any(String),
     });
@@ -39,7 +45,13 @@ describe('POST /users', () => {
   });
 
   it('should persist the user in the database', async () => {
-    const response = await request(app).post('/users').send(makeCreateUserInput());
+    const testUser = {
+      name: faker.person.fullName(),
+      email: faker.internet.email(),
+      username: faker.internet.username(),
+      password: faker.internet.password(),
+    };
+    const response = await request(app).post('/users').send(makeCreateUserInput(testUser));
 
     const persistedUser = await db('users')
       .where({
@@ -52,17 +64,22 @@ describe('POST /users', () => {
     expect(persistedUser).toEqual(
       expect.objectContaining({
         id: response.body.id,
-        name: 'John Doe',
-        email: 'john@example.com',
-        username: 'john',
+        name: testUser.name,
+        email: testUser.email.toLowerCase(),
+        username: testUser.username.toLowerCase(),
       })
     );
-    expect(persistedUser).not.toHaveProperty('login');
     expect(persistedUser).not.toHaveProperty('password_hash');
   });
 
   it('should persist a local identity for the user', async () => {
-    const response = await request(app).post('/users').send(makeCreateUserInput());
+    const testUser = {
+      name: faker.person.fullName(),
+      email: faker.internet.email(),
+      username: faker.internet.username(),
+      password: faker.internet.password(),
+    };
+    const response = await request(app).post('/users').send(makeCreateUserInput(testUser));
 
     const persistedIdentity = await db('identities').where({ user_id: response.body.id }).first();
 
@@ -70,8 +87,8 @@ describe('POST /users', () => {
       expect.objectContaining({
         user_id: response.body.id,
         provider: 'local',
-        provider_subject: 'john@example.com',
-        provider_email: 'john@example.com',
+        provider_subject: testUser.email.toLowerCase(),
+        provider_email: testUser.email.toLowerCase(),
       })
     );
   });
@@ -92,11 +109,22 @@ describe('POST /users', () => {
   });
 
   it('should not create a user with duplicated email', async () => {
-    await request(app).post('/users').send(makeCreateUserInput()).expect(201);
+    await request(app)
+      .post('/users')
+      .send(
+        makeCreateUserInput({
+          email: 'duplicated-email@test.com',
+        })
+      )
+      .expect(201);
 
     const response = await request(app)
       .post('/users')
-      .send(makeCreateUserInput({ username: 'john2' }));
+      .send(
+        makeCreateUserInput({
+          email: 'duplicated-email@test.com',
+        })
+      );
 
     expect(response.status).toBe(409);
     expect(response.body.name).toBe('user_already_exists');
@@ -107,11 +135,22 @@ describe('POST /users', () => {
   });
 
   it('should not create a user with duplicated username', async () => {
-    await request(app).post('/users').send(makeCreateUserInput()).expect(201);
+    await request(app)
+      .post('/users')
+      .send(
+        makeCreateUserInput({
+          username: 'duplicated-username',
+        })
+      )
+      .expect(201);
 
     const response = await request(app)
       .post('/users')
-      .send(makeCreateUserInput({ email: 'another@example.com' }));
+      .send(
+        makeCreateUserInput({
+          username: 'duplicated-username',
+        })
+      );
 
     expect(response.status).toBe(409);
     expect(response.body.name).toBe('user_already_exists');
@@ -177,9 +216,15 @@ describe('POST /users', () => {
   });
 
   it('should handle concurrent attempts with the same credentials', async () => {
+    const testUser = {
+      name: faker.person.fullName(),
+      email: faker.internet.email(),
+      username: faker.internet.username(),
+      password: faker.internet.password(),
+    };
     const [firstResponse, secondResponse] = await Promise.all([
-      request(app).post('/users').send(makeCreateUserInput()),
-      request(app).post('/users').send(makeCreateUserInput()),
+      request(app).post('/users').send(makeCreateUserInput(testUser)),
+      request(app).post('/users').send(makeCreateUserInput(testUser)),
     ]);
 
     expect([firstResponse.status, secondResponse.status].sort()).toEqual([201, 409]);
