@@ -1,5 +1,3 @@
-// src/adapters/logger/pino/PinoLoggerService.ts
-
 import type { Logger } from 'pino';
 
 import type { ILoggerService, LogContext } from '@/services/ILoggerService.js';

@@ -78,6 +78,12 @@ export class KnexUsersRepository implements IUsersRepository {
     return user ? this.toDomain(user) : null;
   }
 
+  async findUserById(id: string): Promise<User | null> {
+    const user = await this.db<UserRow>('users').whereRaw('id = ?', [id]).first();
+
+    return user ? this.toDomain(user) : null;
+  }
+
   private toDomain(user: UserRow): User {
     return new User({
       id: user.id,

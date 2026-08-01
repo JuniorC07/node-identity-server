@@ -33,4 +33,32 @@ export class KnexSessionsRepository implements ISessionsRepository {
       revoked_at: session.revokedAt,
     });
   }
+
+  async findActiveByTokenHash(tokenHash: string): Promise<Session | null> {
+    const sessionRow = await this.db<SessionRow>('sessions')
+      .where({ token_hash: tokenHash })
+      .andWhere('expires_at', '>', new Date())
+      .andWhere('revoked_at', null)
+      .first();
+
+    if (!sessionRow) {
+      return null;
+    }
+    return this.toDomain(sessionRow);
+  }
+
+  private toDomain(sessionRow: SessionRow): Session {
+    return new Session({
+      id: sessionRow.id,
+      userId: sessionRow.user_id,
+      identityId: sessionRow.identity_id,
+      tokenHash: sessionRow.token_hash,
+      ipAddress: sessionRow.ip_address,
+      userAgent: sessionRow.user_agent,
+      createdAt: sessionRow.created_at,
+      lastUsedAt: sessionRow.last_used_at,
+      expiresAt: sessionRow.expires_at,
+      revokedAt: sessionRow.revoked_at,
+    });
+  }
 }

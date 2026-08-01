@@ -6,6 +6,11 @@ export interface CookieOptions {
   maxAge: number;
 }
 
+export type ParsedCookies = {
+  [x: string]: string | undefined;
+};
+
 export interface ICookieSerializerService {
   serialize(name: string, value: string, options: CookieOptions): string;
+  parse(cookieUnparsed: string): ParsedCookies;
 }

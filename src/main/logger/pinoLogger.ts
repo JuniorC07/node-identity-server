@@ -1,5 +1,3 @@
-// src/main/logger/pinoLogger.ts
-
 import pino from 'pino';
 
 import { PinoLoggerService } from '@/adapters/logger/pino/PinoLoggerService.js';
