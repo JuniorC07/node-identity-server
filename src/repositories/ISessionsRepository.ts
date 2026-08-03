@@ -10,4 +10,5 @@ export interface ISessionsRepository {
   findActiveByTokenHash(tokenHash: string): Promise<Session | null>;
   updateLastUsedAt(sessionId: string): Promise<void>;
   updateExpiresAt(input: UpdateSessionExpirationInput): Promise<void>;
+  revoke(sessionId: string): Promise<void>;
 }

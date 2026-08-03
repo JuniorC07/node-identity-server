@@ -66,6 +66,14 @@ export class KnexSessionsRepository implements ISessionsRepository {
       .where({ id: input.sessionId });
   }
 
+  async revoke(sessionId: string): Promise<void> {
+    await this.db<SessionRow>('sessions')
+      .update({
+        revoked_at: new Date(),
+      })
+      .where({ id: sessionId });
+  }
+
   private toDomain(sessionRow: SessionRow): Session {
     return new Session({
       id: sessionRow.id,
