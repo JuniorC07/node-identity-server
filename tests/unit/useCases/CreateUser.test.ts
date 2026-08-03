@@ -23,6 +23,10 @@ class InMemoryUsersRepository implements IUsersRepository {
   async findUserByUsername(username: string): Promise<User | null> {
     return this.users.find((user) => user.username === username) ?? null;
   }
+
+  async findUserById(id: string): Promise<User | null> {
+    return this.users.find((user) => user.id === id) ?? null;
+  }
 }
 
 class FakePasswordHasher implements IPasswordHasherService {

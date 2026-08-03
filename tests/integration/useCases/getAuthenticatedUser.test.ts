@@ -11,7 +11,10 @@ import { CreateUserInput } from '@/useCases/users/CreateUserUseCase.js';
 import { CreateLocalSessionOutput } from '@/useCases/sessions/CreateLocalSessionUseCase.js';
 import { sessionCookieConfig } from '@/config/sessionCookieConfig.js';
 import { User } from '@/entities/User.js';
+import { sessionExpirationInMilliSeconds } from '@/config/sessionExpirationInMilliSeconds.js';
 
+const SESSION_LIFETIME = sessionExpirationInMilliSeconds;
+const RENEWAL_THRESHOLD = SESSION_LIFETIME / 3;
 let createdSession: null | CreateLocalSessionOutput = null;
 let createdUser: null | User = null;
 
@@ -58,11 +61,26 @@ describe('GET /users/me', () => {
   });
 
   it('should return 200 with correct user data', async () => {
+    const beforeUpdate = new Date();
+
     const response = await request(app)
       .get('/users/me')
       .set('Cookie', [
         `${sessionCookieConfig.name}=${createdSession?.rawToken}; Max-Age=1295999; Path=/; HttpOnly; SameSite=Lax`,
       ]);
+    const afterUpdate = new Date();
+
+    const sessionTokenService = makeSHA256SessionTokenService();
+    const hashedToken = sessionTokenService.hash(createdSession?.rawToken ?? '');
+
+    const persistedSession = await db('sessions').where({ token_hash: hashedToken }).first();
+    expect(persistedSession?.last_used_at).toBeDefined();
+
+    const persistedLastUsedAt = new Date(persistedSession!.last_used_at);
+
+    expect(persistedLastUsedAt.getTime()).toBeGreaterThan(beforeUpdate.getTime());
+    expect(persistedLastUsedAt.getTime()).toBeLessThan(afterUpdate.getTime());
+    expect(response.headers['set-cookie']).not.toBeDefined();
 
     expect(response.status).toBe(200);
     expect(response.body).toEqual({
@@ -70,6 +88,59 @@ describe('GET /users/me', () => {
       createdAt: createdUser?.createdAt.toISOString(),
       updatedAt: createdUser?.updatedAt.toISOString(),
     });
+  });
+
+  it('should return 200 with correct data/cookie and renew session when one third of its lifetime remains', async () => {
+    const sessionTokenService = makeSHA256SessionTokenService();
+    const hashedToken = sessionTokenService.hash(createdSession?.rawToken ?? '');
+    const expiresAtRenewalThreshold = new Date(Date.now() + RENEWAL_THRESHOLD);
+
+    await db('sessions')
+      .update({ expires_at: expiresAtRenewalThreshold })
+      .where({ token_hash: hashedToken });
+
+    const response = await request(app)
+      .get('/users/me')
+      .set('Cookie', [
+        `${sessionCookieConfig.name}=${createdSession?.rawToken}; Max-Age=1295999; Path=/; HttpOnly; SameSite=Lax`,
+      ]);
+
+    const persistedSession = await db('sessions').where({ token_hash: hashedToken }).first();
+
+    expect(persistedSession.expires_at.getTime()).toBeGreaterThan(
+      expiresAtRenewalThreshold.getTime()
+    );
+    expect(response.headers['set-cookie']).toBeDefined();
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({
+      ...createdUser,
+      createdAt: createdUser?.createdAt.toISOString(),
+      updatedAt: createdUser?.updatedAt.toISOString(),
+    });
+  });
+
+  it('should not renew session when more than one third of its lifetime remains', async () => {
+    const { sessionOutput } = await createUserAndSession();
+    const sessionTokenService = makeSHA256SessionTokenService();
+    const hashedToken = sessionTokenService.hash(sessionOutput.rawToken);
+    const expiresAfterRenewalThreshold = new Date(Date.now() + RENEWAL_THRESHOLD + 60_000);
+
+    await db('sessions')
+      .update({ expires_at: expiresAfterRenewalThreshold })
+      .where({ token_hash: hashedToken });
+
+    const response = await request(app)
+      .get('/users/me')
+      .set('Cookie', [
+        `${sessionCookieConfig.name}=${sessionOutput.rawToken}; Max-Age=1295999; Path=/; HttpOnly; SameSite=Lax`,
+      ]);
+
+    const persistedSession = await db('sessions').where({ token_hash: hashedToken }).first();
+
+    expect(persistedSession.expires_at.getTime()).toBe(expiresAfterRenewalThreshold.getTime());
+    expect(response.headers['set-cookie']).toBeUndefined();
+    expect(response.status).toBe(200);
   });
 
   it('should return 401 with invalid cookie name but valid value', async () => {

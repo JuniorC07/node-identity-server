@@ -1,7 +1,10 @@
 import type { Knex } from 'knex';
 
 import { Session } from '@/entities/Session.js';
-import type { ISessionsRepository } from '@/repositories/ISessionsRepository.js';
+import type {
+  ISessionsRepository,
+  UpdateSessionExpirationInput,
+} from '@/repositories/ISessionsRepository.js';
 
 interface SessionRow {
   id: string;
@@ -45,6 +48,22 @@ export class KnexSessionsRepository implements ISessionsRepository {
       return null;
     }
     return this.toDomain(sessionRow);
+  }
+
+  async updateLastUsedAt(sessionId: string): Promise<void> {
+    await this.db<SessionRow>('sessions')
+      .update({
+        last_used_at: new Date(),
+      })
+      .where({ id: sessionId });
+  }
+
+  async updateExpiresAt(input: UpdateSessionExpirationInput): Promise<void> {
+    await this.db<SessionRow>('sessions')
+      .update({
+        expires_at: input.expiresAt,
+      })
+      .where({ id: input.sessionId });
   }
 
   private toDomain(sessionRow: SessionRow): Session {

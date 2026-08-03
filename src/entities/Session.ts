@@ -35,4 +35,9 @@ export class Session {
     this.expiresAt = props.expiresAt;
     this.revokedAt = props.revokedAt;
   }
+
+  shouldRenew(now: Date, sessionLifetime: number): boolean {
+    const remaining = this.expiresAt.getTime() - now.getTime();
+    return remaining > 0 && remaining <= sessionLifetime / 3;
+  }
 }
