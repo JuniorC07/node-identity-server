@@ -23,7 +23,6 @@ export class JoseTokenSignerService implements ITokenSignerService {
 
     const issuedAtInSeconds = Math.floor(Date.now() / 1000);
     const expiresAtInSeconds = issuedAtInSeconds + input.expiresInSeconds;
-    console.log(expiresAtInSeconds, input);
     const token = await new SignJWT({ sid: input.sessionId })
       .setProtectedHeader({
         alg: this.config.algorithm,

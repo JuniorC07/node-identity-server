@@ -6,18 +6,19 @@ import { faker } from '@faker-js/faker';
 import { db } from '@/adapters/database/knex/connection.js';
 import app from '@/app.js';
 import { makeCreateUser } from '@/main/factories/useCases/users/makeCreateUserUseCase.js';
-import { CreateUserInput } from '@/useCases/users/CreateUserUseCase.js';
+import { CreateUserInput, CreateUserOutput } from '@/useCases/users/CreateUserUseCase.js';
 import { sessionCookieConfig } from '@/config/sessionCookieConfig.js';
 
-async function createUser(overrides: Partial<CreateUserInput> = {}): Promise<void> {
+async function createUser(overrides: Partial<CreateUserInput> = {}): Promise<CreateUserOutput> {
   const useCase = makeCreateUser();
-  await useCase.execute({
+  const user = await useCase.execute({
     name: faker.person.fullName(),
     email: faker.internet.email(),
     username: faker.internet.username(),
     password: faker.internet.password(),
     ...overrides,
   });
+  return user;
 }
 
 describe('POST /sessions', () => {
@@ -83,5 +84,39 @@ describe('POST /sessions', () => {
     expect(sessionCookie.value).toBeDefined();
 
     expect(response.status).toBe(201);
+  });
+
+  it('should return 400 with no email', async () => {
+    const testUser = {
+      name: faker.person.fullName(),
+      email: faker.internet.email(),
+      username: faker.internet.username(),
+      password: faker.internet.password(),
+    };
+    await createUser(testUser);
+    const response = await request(app).post('/sessions').send({
+      password: testUser.password,
+    });
+
+    expect(response.status).toBe(400);
+  });
+
+  it('should return 201 and slice userAgent when its > 1000', async () => {
+    const testUser = {
+      name: faker.person.fullName(),
+      email: faker.internet.email(),
+      username: faker.internet.username(),
+      password: faker.internet.password(),
+    };
+    const userAgent = 'X'.repeat(2000);
+    const { identity } = await createUser(testUser);
+
+    const response = await request(app).post('/sessions').set('user-agent', userAgent).send({
+      identifier: testUser.email,
+      password: testUser.password,
+    });
+    const persistedSession = await db('sessions').where({ identity_id: identity.id }).first();
+    expect(response.status).toBe(201);
+    expect(persistedSession.user_agent?.length).toBe(1000);
   });
 });
