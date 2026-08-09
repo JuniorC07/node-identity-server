@@ -43,7 +43,10 @@ describe('JoseTokenSignerService', () => {
     const result = await signer.sign({
       subject: 'user-id',
       sessionId: 'session-id',
+      clientId: 'client-id',
       audience: AUDIENCE,
+      scopes: ['orders:read'],
+      modules: ['orders'],
       expiresInSeconds: 600,
     });
 
@@ -57,6 +60,9 @@ describe('JoseTokenSignerService', () => {
     expect(protectedHeader.kid).toBe(KEY_ID);
     expect(payload.sub).toBe('user-id');
     expect(payload.sid).toBe('session-id');
+    expect(payload.client_id).toBe('client-id');
+    expect(payload.scope).toBe('orders:read');
+    expect(payload.modules).toEqual(['orders']);
     expect(result.expiresAt.getTime() - result.issuedAt.getTime()).toBe(600_000);
   });
 });

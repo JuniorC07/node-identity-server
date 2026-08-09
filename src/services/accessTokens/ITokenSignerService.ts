@@ -1,6 +1,9 @@
 export interface SignTokenInput {
   subject: string;
   sessionId: string;
+  clientId: string;
+  scopes: string[];
+  modules: string[];
   audience: string | string[];
   expiresInSeconds: number;
 }

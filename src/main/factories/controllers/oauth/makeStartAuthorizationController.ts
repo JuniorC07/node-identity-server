@@ -10,6 +10,7 @@ export function makeStartAuthorizationController(): StartAuthorizationController
   return new StartAuthorizationController(
     startAuthorizationUseCase,
     validator,
-    authorizationRequestConfig.loginPageUrl
+    authorizationRequestConfig.loginPageUrl,
+    authorizationRequestConfig.consentPageUrl
   );
 }

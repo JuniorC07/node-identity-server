@@ -53,6 +53,12 @@ export class JoseTokenVerifierService implements ITokenVerifierService {
         typeof payload.sub !== 'string' ||
         typeof payload.sid !== 'string' ||
         payload.sid.length === 0 ||
+        typeof payload.client_id !== 'string' ||
+        payload.client_id.length === 0 ||
+        typeof payload.scope !== 'string' ||
+        payload.scope.trim().length === 0 ||
+        !Array.isArray(payload.modules) ||
+        payload.modules.some((module) => typeof module !== 'string' || module.length === 0) ||
         typeof payload.iat !== 'number' ||
         typeof payload.exp !== 'number' ||
         payload.aud === undefined
@@ -61,11 +67,16 @@ export class JoseTokenVerifierService implements ITokenVerifierService {
       }
 
       const audience = Array.isArray(payload.aud) ? payload.aud : [payload.aud];
+      const scopes = [...new Set(payload.scope.split(' ').filter(Boolean))];
+      const modules = [...new Set(payload.modules as string[])];
 
       return {
         issuer: payload.iss,
         subject: payload.sub,
         sessionId: payload.sid,
+        clientId: payload.client_id,
+        scopes,
+        modules,
         audience,
         issuedAt: new Date(payload.iat * 1000),
         expiresAt: new Date(payload.exp * 1000),

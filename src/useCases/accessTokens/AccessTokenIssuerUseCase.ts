@@ -3,7 +3,10 @@ import type { ITokenSignerService } from '@/services/accessTokens/ITokenSignerSe
 export interface AccessTokenIssuerInput {
   subject: string;
   sessionId: string;
-  audience: string | string[];
+  clientId: string;
+  audience: string;
+  scopes: string[];
+  modules: string[];
 }
 
 export interface AccessTokenIssuerOutput {
@@ -26,6 +29,9 @@ export class AccessTokenIssuerUseCase {
       audience: input.audience,
       expiresInSeconds: this.accessTokenLifetimeInSeconds,
       sessionId: input.sessionId,
+      clientId: input.clientId,
+      scopes: [...new Set(input.scopes)],
+      modules: [...new Set(input.modules)],
     });
 
     return {

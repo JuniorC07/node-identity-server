@@ -4,6 +4,8 @@ import { OAuthClient } from '@/entities/OAuthClient.js';
 import type { IOAuthClientsRepository } from '@/repositories/IOAuthClientsRepository.js';
 import type { IPasswordHasherService } from '@/services/IPasswordHasherService.js';
 import type { IOAuthClientCredentialsService } from '@/services/IOAuthClientCredentialsService.js';
+import type { IOAuthScopesRepository } from '@/repositories/IOAuthScopesRepository.js';
+import { InvalidOAuthScopeError } from '@/errors/oauth/InvalidOAuthScopeError.js';
 
 export interface CreateOAuthClientInput {
   name: string;
@@ -21,10 +23,21 @@ export class CreateOAuthClientUseCase {
   constructor(
     private readonly clientsRepository: IOAuthClientsRepository,
     private readonly credentialsService: IOAuthClientCredentialsService,
-    private readonly secretHasher: IPasswordHasherService
+    private readonly secretHasher: IPasswordHasherService,
+    private readonly scopesRepository: IOAuthScopesRepository
   ) {}
 
   async execute(input: CreateOAuthClientInput): Promise<CreateOAuthClientOutput> {
+    const allowedScopes = [...new Set(input.allowedScopes)];
+    const persistedScopes = await this.scopesRepository.findByKeys(allowedScopes);
+
+    if (
+      persistedScopes.length !== allowedScopes.length ||
+      persistedScopes.some((scope) => !scope.enabled)
+    ) {
+      throw new InvalidOAuthScopeError();
+    }
+
     const clientId = this.credentialsService.generateClientId();
 
     const rawClientSecret =
@@ -39,7 +52,7 @@ export class CreateOAuthClientUseCase {
       clientId,
       name: input.name,
       redirectUris: [...new Set(input.redirectUris)],
-      allowedScopes: [...new Set(input.allowedScopes)],
+      allowedScopes,
       createdAt: now,
       updatedAt: now,
     };

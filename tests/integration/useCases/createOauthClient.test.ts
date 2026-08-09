@@ -57,7 +57,7 @@ describe('POST /admin/oauth/clients', () => {
   it('should return 201 with correct client data(type `public`)', async () => {
     const name = faker.internet.domainWord();
     const url = faker.internet.url();
-    const scope = faker.animal.cat();
+    const scope = 'openid';
     const response = await request(app)
       .post('/admin/oauth/clients')
       .send({
@@ -80,7 +80,7 @@ describe('POST /admin/oauth/clients', () => {
   it('should return 201 with correct client data(type `confidential`)', async () => {
     const name = faker.internet.domainWord();
     const url = faker.internet.url();
-    const scope = faker.animal.cat();
+    const scope = 'openid';
     const response = await request(app)
       .post('/admin/oauth/clients')
       .send({
@@ -104,7 +104,7 @@ describe('POST /admin/oauth/clients', () => {
   it('should return 400 if type is not present', async () => {
     const name = faker.internet.domainWord();
     const url = faker.internet.url();
-    const scope = faker.animal.cat();
+    const scope = 'openid';
     const response = await request(app)
       .post('/admin/oauth/clients')
       .send({
@@ -117,5 +117,22 @@ describe('POST /admin/oauth/clients', () => {
       ]);
 
     expect(response.status).toBe(400);
+  });
+
+  it('should reject an OAuth client with an unregistered scope', async () => {
+    const response = await request(app)
+      .post('/admin/oauth/clients')
+      .send({
+        name: faker.internet.domainWord(),
+        type: 'public',
+        redirectUris: [faker.internet.url()],
+        allowedScopes: ['unknown:scope'],
+      })
+      .set('Cookie', [
+        `${sessionCookieConfig.name}=${createdSession?.rawToken}; Max-Age=1295999; Path=/; HttpOnly; SameSite=Lax`,
+      ]);
+
+    expect(response.status).toBe(400);
+    expect(response.body.name).toBe('invalid_oauth_scope');
   });
 });

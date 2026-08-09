@@ -25,7 +25,8 @@ function makeSut() {
   const controller = new StartAuthorizationController(
     { execute } as unknown as StartAuthorizationUseCase,
     { validate } as AuthorizeRequestValidator,
-    '/login'
+    '/login',
+    '/consent'
   );
 
   return { controller, execute, validate };
@@ -60,9 +61,13 @@ describe('StartAuthorizationController', () => {
     const { controller, execute } = makeSut();
     execute.mockResolvedValue({
       authenticationRequired: false,
+      consentRequired: false,
       authorizationRequestToken: 'authorization-request-token',
       client: { clientId: 'client-id', name: 'Example client' },
       requestedScopes: ['openid', 'profile'],
+      missingConsentScopes: [],
+      audiences: [],
+      modules: [],
     });
     const req = {
       query: {},
@@ -89,6 +94,41 @@ describe('StartAuthorizationController', () => {
       authorizationRequestToken: 'authorization-request-token',
       client: { clientId: 'client-id', name: 'Example client' },
       requestedScopes: ['openid', 'profile'],
+      missingConsentScopes: [],
+      audiences: [],
+      modules: [],
     });
+  });
+
+  it('should redirect to consent when a requested scope has no active grant', async () => {
+    const { controller, execute } = makeSut();
+    execute.mockResolvedValue({
+      authenticationRequired: false,
+      consentRequired: true,
+      authorizationRequestToken: 'authorization-request-token',
+      client: { clientId: 'client-id', name: 'Example client' },
+      requestedScopes: ['openid', 'profile'],
+      missingConsentScopes: [{ key: 'profile', description: 'Access basic profile information' }],
+      audiences: [],
+      modules: [],
+    });
+    const req = {
+      query: {},
+      originalUrl: '/oauth/authorize',
+      auth: {
+        userId: 'user-id',
+        sessionId: 'session-id',
+        identityId: 'identity-id',
+      },
+    } as Request;
+    const redirect = vi.fn();
+    const res = { redirect } as unknown as Response;
+
+    await controller.handle(req, res);
+
+    expect(redirect).toHaveBeenCalledWith(
+      302,
+      '/consent?authorization_request=authorization-request-token'
+    );
   });
 });

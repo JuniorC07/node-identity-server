@@ -4,7 +4,6 @@ import { AuthorizationRequest } from '@/entities/AuthorizationRequest.js';
 import { InvalidOAuthClientError } from '@/errors/oauth/InvalidOAuthClientError.js';
 import { InvalidOAuthNonceError } from '@/errors/oauth/InvalidOAuthNonceError.js';
 import { InvalidOAuthRedirectUriError } from '@/errors/oauth/InvalidOAuthRedirectUriError.js';
-import { InvalidOAuthScopeError } from '@/errors/oauth/InvalidOAuthScopeError.js';
 import { InvalidPkceChallengeError } from '@/errors/oauth/InvalidPkceChallengeError.js';
 import { UnsupportedOAuthResponseTypeError } from '@/errors/oauth/UnsupportedOAuthResponseTypeError.js';
 import { UnsupportedPkceMethodError } from '@/errors/oauth/UnsupportedPkceMethodError.js';
@@ -12,15 +11,24 @@ import type { IAuthorizationRequestsRepository } from '@/repositories/IAuthoriza
 import type { IOAuthClientsRepository } from '@/repositories/IOAuthClientsRepository.js';
 import type { IPkceService } from '@/services/IPkceService.js';
 import type { ISessionTokenService } from '@/services/ISessionTokenService.js';
+import type {
+  EvaluateUserOAuthAuthorizationOutput,
+  EvaluateUserOAuthAuthorizationUseCase,
+} from '@/useCases/oauth/EvaluateUserOAuthAuthorizationUseCase.js';
+import type { ResolveOAuthScopesUseCase } from '@/useCases/oauth/ResolveOAuthScopesUseCase.js';
 
 export interface AuthorizationStartedOutput {
   authenticationRequired: false;
+  consentRequired: boolean;
   authorizationRequestToken: string;
   client: {
     clientId: string;
     name: string;
   };
   requestedScopes: string[];
+  missingConsentScopes: EvaluateUserOAuthAuthorizationOutput['missingConsentScopes'];
+  audiences: string[];
+  modules: string[];
 }
 
 export interface AuthenticationRequiredOutput {
@@ -51,6 +59,8 @@ export class StartAuthorizationUseCase {
     private readonly authorizationRequestsRepository: IAuthorizationRequestsRepository,
     private readonly requestTokenService: ISessionTokenService,
     private readonly pkceService: IPkceService,
+    private readonly resolveOAuthScopesUseCase: ResolveOAuthScopesUseCase,
+    private readonly evaluateUserOAuthAuthorizationUseCase: EvaluateUserOAuthAuthorizationUseCase,
     private readonly requestLifetimeInSeconds: number
   ) {}
 
@@ -78,9 +88,10 @@ export class StartAuthorizationUseCase {
       ),
     ];
 
-    if (requestedScopes.length === 0 || !client.allowsScopes(requestedScopes)) {
-      throw new InvalidOAuthScopeError();
-    }
+    const { scopes } = await this.resolveOAuthScopesUseCase.execute({
+      requestedScopeKeys: requestedScopes,
+      clientAllowedScopeKeys: client.allowedScopes,
+    });
 
     if (input.codeChallengeMethod !== 'S256') {
       throw new UnsupportedPkceMethodError();
@@ -90,13 +101,19 @@ export class StartAuthorizationUseCase {
       throw new InvalidPkceChallengeError();
     }
 
-    if (requestedScopes.includes('openid') && !input.nonce) {
+    if (scopes.some((scope) => scope.key === 'openid') && !input.nonce) {
       throw new InvalidOAuthNonceError();
     }
 
     if (!input.userId || !input.sessionId) {
       return { authenticationRequired: true };
     }
+
+    const authorizationEvaluation = await this.evaluateUserOAuthAuthorizationUseCase.execute({
+      userId: input.userId,
+      oauthClientId: client.id,
+      scopes,
+    });
 
     const { rawToken, tokenHash } = this.requestTokenService.generate();
 
@@ -123,12 +140,16 @@ export class StartAuthorizationUseCase {
 
     return {
       authenticationRequired: false,
+      consentRequired: authorizationEvaluation.consentRequired,
       authorizationRequestToken: rawToken,
       client: {
         clientId: client.clientId,
         name: client.name,
       },
       requestedScopes,
+      missingConsentScopes: authorizationEvaluation.missingConsentScopes,
+      audiences: authorizationEvaluation.audiences,
+      modules: authorizationEvaluation.modules,
     };
   }
 }

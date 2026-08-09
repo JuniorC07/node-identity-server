@@ -7,7 +7,8 @@ export class StartAuthorizationController {
   constructor(
     private readonly startAuthorizationUseCase: StartAuthorizationUseCase,
     private readonly validator: AuthorizeRequestValidator,
-    private readonly loginPageUrl: string
+    private readonly loginPageUrl: string,
+    private readonly consentPageUrl: string
   ) {}
 
   handle = async (req: Request, res: Response): Promise<void> => {
@@ -25,7 +26,21 @@ export class StartAuthorizationController {
       return;
     }
 
-    const { authenticationRequired: _authenticationRequired, ...responseBody } = output;
+    if (output.consentRequired) {
+      const consentQuery = new URLSearchParams({
+        authorization_request: output.authorizationRequestToken,
+      });
+      const querySeparator = this.consentPageUrl.includes('?') ? '&' : '?';
+
+      res.redirect(302, `${this.consentPageUrl}${querySeparator}${consentQuery.toString()}`);
+      return;
+    }
+
+    const {
+      authenticationRequired: _authenticationRequired,
+      consentRequired: _consentRequired,
+      ...responseBody
+    } = output;
 
     res.status(200).json(responseBody);
   };

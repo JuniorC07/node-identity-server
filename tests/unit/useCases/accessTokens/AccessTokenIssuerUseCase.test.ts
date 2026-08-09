@@ -20,14 +20,20 @@ describe('AccessTokenIssuerUseCase', () => {
     const output = await useCase.execute({
       subject: 'user-id',
       sessionId: 'session-id',
-      audience: ['service-a', 'service-b'],
+      clientId: 'client-id',
+      audience: 'service-a',
+      scopes: ['orders:read'],
+      modules: ['orders'],
     });
 
     expect(sign).toHaveBeenCalledOnce();
     expect(sign).toHaveBeenCalledWith({
       subject: 'user-id',
       sessionId: 'session-id',
-      audience: ['service-a', 'service-b'],
+      clientId: 'client-id',
+      audience: 'service-a',
+      scopes: ['orders:read'],
+      modules: ['orders'],
       expiresInSeconds: ACCESS_TOKEN_LIFETIME_IN_SECONDS,
     });
     expect(output).toEqual({
@@ -50,7 +56,10 @@ describe('AccessTokenIssuerUseCase', () => {
       useCase.execute({
         subject: 'user-id',
         sessionId: 'session-id',
+        clientId: 'client-id',
         audience: 'service-a',
+        scopes: ['orders:read'],
+        modules: ['orders'],
       })
     ).rejects.toBe(signingError);
   });

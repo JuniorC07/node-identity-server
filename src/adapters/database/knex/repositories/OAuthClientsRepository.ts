@@ -18,8 +18,12 @@ interface OAuthClientRedirectUriRow {
   redirect_uri: string;
 }
 
-interface OAuthClientAllowedScopeRow {
+interface OAuthClientScopeRow {
   oauth_client_id: string;
+  scope_id: string;
+}
+
+interface OAuthClientScopeKeyRow {
   scope: string;
 }
 
@@ -48,10 +52,18 @@ export class KnexOAuthClientsRepository implements IOAuthClientsRepository {
       }
 
       if (client.allowedScopes.length > 0) {
-        await trx<OAuthClientAllowedScopeRow>('oauth_client_allowed_scopes').insert(
-          client.allowedScopes.map((scope) => ({
+        const scopeRows = await trx<{ id: string; key: string }>('oauth_scopes')
+          .select('id', 'key')
+          .whereIn('key', [...client.allowedScopes]);
+
+        if (scopeRows.length !== client.allowedScopes.length) {
+          throw new Error('Cannot persist an OAuth client with unregistered scopes');
+        }
+
+        await trx<OAuthClientScopeRow>('oauth_client_scopes').insert(
+          scopeRows.map((scope) => ({
             oauth_client_id: client.id,
-            scope,
+            scope_id: scope.id,
           }))
         );
       }
@@ -59,9 +71,17 @@ export class KnexOAuthClientsRepository implements IOAuthClientsRepository {
   }
 
   async findByClientId(clientId: string): Promise<OAuthClient | null> {
-    const clientRow = await this.db<OAuthClientRow>('oauth_clients')
-      .where({ client_id: clientId })
-      .first();
+    return this.findOne({ client_id: clientId });
+  }
+
+  async findById(id: string): Promise<OAuthClient | null> {
+    return this.findOne({ id });
+  }
+
+  private async findOne(
+    criteria: Partial<Pick<OAuthClientRow, 'id' | 'client_id'>>
+  ): Promise<OAuthClient | null> {
+    const clientRow = await this.db<OAuthClientRow>('oauth_clients').where(criteria).first();
 
     if (!clientRow) {
       return null;
@@ -72,10 +92,11 @@ export class KnexOAuthClientsRepository implements IOAuthClientsRepository {
         .select('redirect_uri')
         .where({ oauth_client_id: clientRow.id })
         .orderBy('redirect_uri'),
-      this.db<OAuthClientAllowedScopeRow>('oauth_client_allowed_scopes')
-        .select('scope')
-        .where({ oauth_client_id: clientRow.id })
-        .orderBy('scope'),
+      this.db<OAuthClientScopeKeyRow>('oauth_client_scopes as client_scope')
+        .innerJoin('oauth_scopes as scope', 'scope.id', 'client_scope.scope_id')
+        .select('scope.key as scope')
+        .where({ 'client_scope.oauth_client_id': clientRow.id })
+        .orderBy('scope.key'),
     ]);
 
     return this.toDomain(

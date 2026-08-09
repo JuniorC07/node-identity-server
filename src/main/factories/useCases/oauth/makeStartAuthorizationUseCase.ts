@@ -4,18 +4,24 @@ import { makeOAuthClientsRepository } from '@/main/factories/repositories/makeOA
 import { makePkceService } from '@/main/factories/services/makePkceService.js';
 import { makeSHA256SessionTokenService } from '@/main/factories/services/makeSessionTokenService.js';
 import { StartAuthorizationUseCase } from '@/useCases/oauth/StartAuthorizationUseCase.js';
+import { makeEvaluateUserOAuthAuthorizationUseCase } from '@/main/factories/useCases/oauth/makeEvaluateUserOAuthAuthorizationUseCase.js';
+import { makeResolveOAuthScopesUseCase } from '@/main/factories/useCases/oauth/makeResolveOAuthScopesUseCase.js';
 
 export function makeStartAuthorizationUseCase(): StartAuthorizationUseCase {
   const clientsRepository = makeOAuthClientsRepository();
   const authorizationRequestsRepository = makeAuthorizationRequestsRepository();
   const requestTokenService = makeSHA256SessionTokenService();
   const pkceService = makePkceService();
+  const resolveOAuthScopesUseCase = makeResolveOAuthScopesUseCase();
+  const evaluateUserOAuthAuthorizationUseCase = makeEvaluateUserOAuthAuthorizationUseCase();
 
   return new StartAuthorizationUseCase(
     clientsRepository,
     authorizationRequestsRepository,
     requestTokenService,
     pkceService,
+    resolveOAuthScopesUseCase,
+    evaluateUserOAuthAuthorizationUseCase,
     authorizationRequestConfig.lifetimeInSeconds
   );
 }

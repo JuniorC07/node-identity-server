@@ -17,4 +17,5 @@ function positiveIntegerFromEnv(name: string, defaultValue: number): number {
 export const authorizationRequestConfig = {
   lifetimeInSeconds: positiveIntegerFromEnv('AUTHORIZATION_REQUEST_LIFETIME_SECONDS', 600),
   loginPageUrl: process.env.IDENTITY_LOGIN_PAGE_URL ?? '/login',
+  consentPageUrl: process.env.IDENTITY_CONSENT_PAGE_URL ?? '/consent',
 };

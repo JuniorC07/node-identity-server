@@ -45,7 +45,12 @@ async function makeToken(
     ...(options.omitKeyId ? {} : { kid: options.keyId ?? KEY_ID }),
   };
 
-  const token = new SignJWT(payload)
+  const token = new SignJWT({
+    client_id: 'client-id',
+    scope: 'orders:read',
+    modules: ['orders'],
+    ...payload,
+  })
     .setProtectedHeader(protectedHeader)
     .setIssuer(options.issuer ?? ISSUER)
     .setAudience(options.audience ?? AUDIENCE);
@@ -108,6 +113,9 @@ describe('JoseTokenVerifierService', () => {
       issuer: ISSUER,
       subject: 'user-id',
       sessionId: 'session-id',
+      clientId: 'client-id',
+      scopes: ['orders:read'],
+      modules: ['orders'],
       audience: [AUDIENCE],
       issuedAt: expect.any(Date),
       expiresAt: expect.any(Date),
@@ -130,6 +138,18 @@ describe('JoseTokenVerifierService', () => {
     { description: 'not a string', payload: { sid: 123 } },
   ])('should reject a $description sid claim', async ({ payload }) => {
     const token = await makeToken(payload);
+
+    await expect(verifier.verify({ token, audience: AUDIENCE })).rejects.toBeInstanceOf(
+      InvalidAccessTokenError
+    );
+  });
+
+  it.each([
+    { description: 'client_id', payload: { client_id: null } },
+    { description: 'scope', payload: { scope: null } },
+    { description: 'modules', payload: { modules: null } },
+  ])('should reject an access token with an invalid $description claim', async ({ payload }) => {
+    const token = await makeToken({ sid: 'session-id', ...payload });
 
     await expect(verifier.verify({ token, audience: AUDIENCE })).rejects.toBeInstanceOf(
       InvalidAccessTokenError
