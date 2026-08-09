@@ -1,5 +1,5 @@
 import { CreateOAuthClientUseCase } from '@/useCases/oauth/CreateOAuthClientUseCase.js';
-import { CreateOAuthClientValidator } from '@/validators/oauth/CreateOAuthClientValidator.js';
+import { CreateOAuthClientValidator } from '@/validators/oauth/CreateOAuthClient/CreateOAuthClientValidator.js';
 import { type Request, type Response } from 'express';
 
 export class CreateOAuthClientController {

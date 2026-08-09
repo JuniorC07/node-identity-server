@@ -1,6 +1,6 @@
 import { CreateOAuthClientController } from '@/controllers/oauth/CreateOAuthClientController.js';
 import { makeCreateOAuthClientUseCase } from '@/main/factories/useCases/oauth/makeCreateOAuthClientUseCase.js';
-import { CreateOAuthClientValidator } from '@/validators/oauth/CreateOAuthClientValidator.js';
+import { CreateOAuthClientValidator } from '@/validators/oauth/CreateOAuthClient/CreateOAuthClientValidator.js';
 
 export function makeCreateOAuthClientController(): CreateOAuthClientController {
   const useCase = makeCreateOAuthClientUseCase();

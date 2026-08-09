@@ -1,6 +1,6 @@
 import { Router } from 'express';
 
-import { makeCreateOAuthClientController } from '@/main/factories/controllers/oauth/CreateOAuthClientController.js';
+import { makeCreateOAuthClientController } from '@/main/factories/controllers/oauth/makeCreateOAuthClientController.js';
 import { makeAuthenticateMiddleware } from '@/main/factories/middlewares/makeAuthenticateMiddleware.js';
 
 const authenticateMiddleware = makeAuthenticateMiddleware();

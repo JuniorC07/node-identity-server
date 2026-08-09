@@ -1,4 +1,4 @@
-import { schema } from '@/validators/oauth/CreateOAuthClientSchema.js';
+import { schema } from '@/validators/oauth/CreateOAuthClient/CreateOAuthClientSchema.js';
 import { BadRequestError } from '@/errors/general/BadRequestError.js';
 import { CreateOAuthClientInput } from '@/useCases/oauth/CreateOAuthClientUseCase.js';
 

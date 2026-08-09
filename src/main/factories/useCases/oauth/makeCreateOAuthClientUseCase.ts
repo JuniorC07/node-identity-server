@@ -1,14 +1,13 @@
-import { db } from '@/adapters/database/knex/connection.js';
-import { KnexOAuthClientsRepository } from '@/adapters/database/knex/repositories/OAuthClientsRepository.js';
 import { CreateOAuthClientUseCase } from '@/useCases/oauth/CreateOAuthClientUseCase.js';
 import { makePasswordHasherService } from '@/main/factories/services/makePasswordHasherService.js';
 import { makeOAuthClientCredentialsService } from '@/main/factories/services/makeOAuthClientCredentialsService.js';
+import { makeOAuthClientsRepository } from '@/main/factories/repositories/makeOAuthClientsRepository.js';
 
 export function makeCreateOAuthClientUseCase(): CreateOAuthClientUseCase {
-  const usersRepository = new KnexOAuthClientsRepository(db);
+  const clientsRepository = makeOAuthClientsRepository();
 
   const passwordHasher = makePasswordHasherService();
   const oAuthClientCredentials = makeOAuthClientCredentialsService();
 
-  return new CreateOAuthClientUseCase(usersRepository, oAuthClientCredentials, passwordHasher);
+  return new CreateOAuthClientUseCase(clientsRepository, oAuthClientCredentials, passwordHasher);
 }

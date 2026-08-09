@@ -15,7 +15,6 @@ export class CreateLocalSessionController {
     const ipAddress = req.ip ?? null;
     const userAgent = req.get('user-agent') ?? null;
     const input = this.validator.validate({ ...body, ipAddress, userAgent });
-
     const { rawToken, expiresAt } = await this.createSessionUseCase.execute(input);
     const expiresAtInSeconds = Math.max(0, Math.floor((expiresAt.getTime() - Date.now()) / 1000));
     const sessionCookie = this.cookieSerializerService.serialize(
