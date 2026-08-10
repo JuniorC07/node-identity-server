@@ -1,4 +1,4 @@
-import type { OAuthClient } from '@/entities/OAuthClient.js';
+import type { OAuthClient } from '@/entities/oauth/OAuthClient.js';
 
 export interface IOAuthClientsRepository {
   create(client: OAuthClient): Promise<void>;

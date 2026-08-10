@@ -46,7 +46,7 @@ async function createUserAndSession(
   });
 
   createdClient = await createClient.execute({
-    allowedScopes: ['scope-1'],
+    allowedScopes: ['openid'],
     name: 'client',
     type: 'public',
     redirectUris: ['http://localhost:3001/callback'],
@@ -72,7 +72,7 @@ describe('POST /oauth/authorize', () => {
         response_type: 'code',
         client_id: createdClient?.client.clientId,
         redirect_uri: 'http://localhost:3001/callback',
-        scope: 'scope-1',
+        scope: 'openid',
         state: 'E9Melhoa2OwvFrEMTJgu',
         nonce: 'EMTJguCHaoeK1t8URWbuGJ',
         code_challenge: 'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM',

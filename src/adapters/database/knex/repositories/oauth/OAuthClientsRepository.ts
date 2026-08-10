@@ -1,7 +1,8 @@
 import type { Knex } from 'knex';
 
-import { OAuthClient } from '@/entities/OAuthClient.js';
-import type { IOAuthClientsRepository } from '@/repositories/IOAuthClientsRepository.js';
+import { OAuthClient } from '@/entities/oauth/OAuthClient.js';
+import type { IOAuthClientsRepository } from '@/repositories/oauth/IOAuthClientsRepository.js';
+import { BadRequestError } from '@/errors/general/BadRequestError.js';
 
 interface OAuthClientRow {
   id: string;
@@ -20,6 +21,9 @@ interface OAuthClientRedirectUriRow {
 
 interface OAuthClientAllowedScopeRow {
   oauth_client_id: string;
+  scope_id: string;
+}
+interface OAuthClientScopeKeyRow {
   scope: string;
 }
 
@@ -48,10 +52,20 @@ export class KnexOAuthClientsRepository implements IOAuthClientsRepository {
       }
 
       if (client.allowedScopes.length > 0) {
+        const scopeRows = await trx<{ id: string; key: string }>('oauth_scopes')
+          .select('id', 'key')
+          .whereIn('key', [...client.allowedScopes]);
+
+        if (scopeRows.length !== client.allowedScopes.length) {
+          throw new BadRequestError({
+            message: 'Cannot persist an OAuth client with unregistered scopes',
+          });
+        }
+
         await trx<OAuthClientAllowedScopeRow>('oauth_client_allowed_scopes').insert(
-          client.allowedScopes.map((scope) => ({
+          scopeRows.map((scope) => ({
             oauth_client_id: client.id,
-            scope,
+            scope_id: scope.id,
           }))
         );
       }
@@ -72,10 +86,11 @@ export class KnexOAuthClientsRepository implements IOAuthClientsRepository {
         .select('redirect_uri')
         .where({ oauth_client_id: clientRow.id })
         .orderBy('redirect_uri'),
-      this.db<OAuthClientAllowedScopeRow>('oauth_client_allowed_scopes')
-        .select('scope')
-        .where({ oauth_client_id: clientRow.id })
-        .orderBy('scope'),
+      this.db<OAuthClientScopeKeyRow>('oauth_client_allowed_scopes as client_scope')
+        .innerJoin('oauth_scopes as scope', 'scope.id', 'client_scope.scope_id')
+        .select('scope.key as scope')
+        .where({ 'client_scope.oauth_client_id': clientRow.id })
+        .orderBy('scope.key'),
     ]);
 
     return this.toDomain(

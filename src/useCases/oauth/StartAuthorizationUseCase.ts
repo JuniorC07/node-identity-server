@@ -9,10 +9,11 @@ import { InvalidPkceChallengeError } from '@/errors/oauth/InvalidPkceChallengeEr
 import { UnsupportedOAuthResponseTypeError } from '@/errors/oauth/UnsupportedOAuthResponseTypeError.js';
 import { UnsupportedPkceMethodError } from '@/errors/oauth/UnsupportedPkceMethodError.js';
 import type { IAuthorizationRequestsRepository } from '@/repositories/IAuthorizationRequestsRepository.js';
-import type { IOAuthClientsRepository } from '@/repositories/IOAuthClientsRepository.js';
+import type { IOAuthClientsRepository } from '@/repositories/oauth/IOAuthClientsRepository.js';
 import type { IPkceService } from '@/services/IPkceService.js';
 import type { ISessionTokenService } from '@/services/ISessionTokenService.js';
-
+import type { ResolveRegisteredOAuthScopesUseCase } from '@/useCases/oauth/_internal/ResolveRegisteredOAuthScopesUseCase.js';
+import { ValidateUserScopesUseCase } from '@/useCases/oauth/_internal/ValidateUserScopesUseCase.js';
 export interface AuthorizationStartedOutput {
   authenticationRequired: false;
   authorizationRequestToken: string;
@@ -51,12 +52,12 @@ export class StartAuthorizationUseCase {
     private readonly authorizationRequestsRepository: IAuthorizationRequestsRepository,
     private readonly requestTokenService: ISessionTokenService,
     private readonly pkceService: IPkceService,
+    private readonly resolveRegisteredOAuthScopesUseCase: ResolveRegisteredOAuthScopesUseCase,
+    private readonly validateUserScopesUseCase: ValidateUserScopesUseCase,
     private readonly requestLifetimeInSeconds: number
   ) {}
-
   async execute(input: StartAuthorizationInput): Promise<StartAuthorizationOutput> {
     const client = await this.clientsRepository.findByClientId(input.clientId);
-
     if (!client) {
       throw new InvalidOAuthClientError();
     }
@@ -78,7 +79,7 @@ export class StartAuthorizationUseCase {
       ),
     ];
 
-    if (requestedScopes.length === 0 || !client.allowsScopes(requestedScopes)) {
+    if (!requestedScopes.length || !client.allowsScopes(requestedScopes)) {
       throw new InvalidOAuthScopeError();
     }
 
@@ -97,6 +98,15 @@ export class StartAuthorizationUseCase {
     if (!input.userId || !input.sessionId) {
       return { authenticationRequired: true };
     }
+
+    const { scopes } = await this.resolveRegisteredOAuthScopesUseCase.execute({
+      requestedScopeKeys: requestedScopes,
+    });
+
+    await this.validateUserScopesUseCase.execute({
+      userId: input.userId,
+      scopes,
+    });
 
     const { rawToken, tokenHash } = this.requestTokenService.generate();
 

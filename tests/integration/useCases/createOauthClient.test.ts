@@ -57,14 +57,14 @@ describe('POST /admin/oauth/clients', () => {
   it('should return 201 with correct client data(type `public`)', async () => {
     const name = faker.internet.domainWord();
     const url = faker.internet.url();
-    const scope = faker.animal.cat();
+    const scopes = ['openid', 'profile'];
     const response = await request(app)
       .post('/admin/oauth/clients')
       .send({
         name,
         type: 'public',
         redirectUris: [url],
-        allowedScopes: [scope],
+        allowedScopes: scopes,
       })
       .set('Cookie', [
         `${sessionCookieConfig.name}=${createdSession?.rawToken}; Max-Age=1295999; Path=/; HttpOnly; SameSite=Lax`,
@@ -74,13 +74,13 @@ describe('POST /admin/oauth/clients', () => {
     expect(response.body.clientId).toBeDefined();
     expect(response.body.id).toBeDefined();
     expect(response.body.redirectUris).toEqual([url]);
-    expect(response.body.allowedScopes).toEqual([scope]);
+    expect(response.body.allowedScopes).toEqual(scopes);
   });
 
   it('should return 201 with correct client data(type `confidential`)', async () => {
     const name = faker.internet.domainWord();
     const url = faker.internet.url();
-    const scope = faker.animal.cat();
+    const scope = 'openid';
     const response = await request(app)
       .post('/admin/oauth/clients')
       .send({
@@ -104,7 +104,7 @@ describe('POST /admin/oauth/clients', () => {
   it('should return 400 if type is not present', async () => {
     const name = faker.internet.domainWord();
     const url = faker.internet.url();
-    const scope = faker.animal.cat();
+    const scope = 'openid';
     const response = await request(app)
       .post('/admin/oauth/clients')
       .send({
