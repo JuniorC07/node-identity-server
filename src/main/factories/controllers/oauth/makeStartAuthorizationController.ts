@@ -2,6 +2,7 @@ import { StartAuthorizationController } from '@/controllers/oauth/StartAuthoriza
 import { makeStartAuthorizationUseCase } from '@/main/factories/useCases/oauth/makeStartAuthorizationUseCase.js';
 import { AuthorizeRequestValidator } from '@/validators/oauth/StartAuthorization/StartAuthorizationValidator.js';
 import { authorizationRequestConfig } from '@/config/authorizationRequestConfig.js';
+import { makeDecideAuthorizationUseCase } from '@/main/factories/useCases/oauth/makeDecideAuthorizationUseCase.js';
 
 export function makeStartAuthorizationController(): StartAuthorizationController {
   const startAuthorizationUseCase = makeStartAuthorizationUseCase();
@@ -9,6 +10,7 @@ export function makeStartAuthorizationController(): StartAuthorizationController
 
   return new StartAuthorizationController(
     startAuthorizationUseCase,
+    makeDecideAuthorizationUseCase(),
     validator,
     authorizationRequestConfig.loginPageUrl,
     authorizationRequestConfig.consentPageUrl

@@ -7,6 +7,7 @@ export interface UpdateSessionExpirationInput {
 
 export interface ISessionsRepository {
   create(session: Session): Promise<void>;
+  findActiveById(id: string): Promise<Session | null>;
   findActiveByTokenHash(tokenHash: string): Promise<Session | null>;
   updateLastUsedAt(sessionId: string): Promise<void>;
   updateExpiresAt(input: UpdateSessionExpirationInput): Promise<void>;

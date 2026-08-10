@@ -16,6 +16,32 @@ export class ErrorHandlerMiddleware {
     if (error instanceof AppError) {
       res.locals.errorCode = error.code;
 
+      if (req.path === '/oauth/token') {
+        const oauthErrorByInternalCode: Record<string, string> = {
+          invalid_oauth_client_credentials: 'invalid_client',
+          invalid_oauth_grant: 'invalid_grant',
+          invalid_oauth_scope: 'invalid_scope',
+          invalid_oauth_target: 'invalid_target',
+          invalid_oauth_token_request: 'invalid_request',
+          oauth_access_denied: 'invalid_grant',
+          unsupported_oauth_grant_type: 'unsupported_grant_type',
+        };
+        const oauthError = oauthErrorByInternalCode[error.code] ?? 'invalid_request';
+
+        res.setHeader('Cache-Control', 'no-store');
+        res.setHeader('Pragma', 'no-cache');
+
+        if (oauthError === 'invalid_client' && req.header('authorization')?.startsWith('Basic ')) {
+          res.setHeader('WWW-Authenticate', 'Basic realm="oauth/token"');
+        }
+
+        res.status(error.statusCode).json({
+          error: oauthError,
+          error_description: error.message,
+        });
+        return;
+      }
+
       res.status(error.statusCode).json({
         message: error.message,
         name: error.code,

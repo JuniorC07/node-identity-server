@@ -34,12 +34,21 @@ describe('accessTokenConfig', () => {
       algorithm: 'RS256',
       issuer: 'https://identity.example.com',
       lifetimeInSeconds: 900,
+      userInfoAudience: 'https://identity.example.com/userinfo',
       signingKey: {
         id: 'test-key-id',
         privateKey: PRIVATE_KEY,
         publicKey: PUBLIC_KEY,
       },
     });
+  });
+
+  it('should allow an explicit UserInfo audience', async () => {
+    vi.stubEnv('OIDC_USERINFO_AUDIENCE', 'https://api.example.com/userinfo');
+
+    const config = await loadConfig();
+
+    expect(config.userInfoAudience).toBe('https://api.example.com/userinfo');
   });
 
   it('should use the default access token lifetime when it is not configured', async () => {

@@ -1,11 +1,13 @@
 import type { Request, Response } from 'express';
 
 import type { StartAuthorizationUseCase } from '@/useCases/oauth/StartAuthorizationUseCase.js';
+import type { DecideAuthorizationUseCase } from '@/useCases/oauth/DecideAuthorizationUseCase.js';
 import type { AuthorizeRequestValidator } from '@/validators/oauth/StartAuthorization/StartAuthorizationValidator.js';
 
 export class StartAuthorizationController {
   constructor(
     private readonly startAuthorizationUseCase: StartAuthorizationUseCase,
+    private readonly decideAuthorizationUseCase: DecideAuthorizationUseCase,
     private readonly validator: AuthorizeRequestValidator,
     private readonly loginPageUrl: string,
     private readonly consentPageUrl: string
@@ -36,12 +38,13 @@ export class StartAuthorizationController {
       return;
     }
 
-    const {
-      authenticationRequired: _authenticationRequired,
-      consentRequired: _consentRequired,
-      ...responseBody
-    } = output;
+    const decision = await this.decideAuthorizationUseCase.execute({
+      authorizationRequestToken: output.authorizationRequestToken,
+      decision: 'approve',
+      userId: req.auth!.userId,
+      sessionId: req.auth!.sessionId,
+    });
 
-    res.status(200).json(responseBody);
+    res.redirect(302, decision.redirectUri);
   };
 }

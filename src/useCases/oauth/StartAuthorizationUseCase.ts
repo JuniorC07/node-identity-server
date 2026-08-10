@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { AuthorizationRequest } from '@/entities/AuthorizationRequest.js';
 import { InvalidOAuthClientError } from '@/errors/oauth/InvalidOAuthClientError.js';
 import { InvalidOAuthNonceError } from '@/errors/oauth/InvalidOAuthNonceError.js';
+import { InvalidOAuthTargetError } from '@/errors/oauth/InvalidOAuthTargetError.js';
 import { InvalidOAuthRedirectUriError } from '@/errors/oauth/InvalidOAuthRedirectUriError.js';
 import { InvalidPkceChallengeError } from '@/errors/oauth/InvalidPkceChallengeError.js';
 import { UnsupportedOAuthResponseTypeError } from '@/errors/oauth/UnsupportedOAuthResponseTypeError.js';
@@ -114,6 +115,10 @@ export class StartAuthorizationUseCase {
       oauthClientId: client.id,
       scopes,
     });
+
+    if (authorizationEvaluation.audiences.length > 1) {
+      throw new InvalidOAuthTargetError();
+    }
 
     const { rawToken, tokenHash } = this.requestTokenService.generate();
 

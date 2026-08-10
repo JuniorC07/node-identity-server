@@ -70,4 +70,14 @@ export class KnexAuthorizationRequestsRepository implements IAuthorizationReques
       consumedAt: row.consumed_at ? new Date(row.consumed_at) : null,
     });
   }
+
+  async consume(id: string, now: Date): Promise<boolean> {
+    const consumedIds = await this.db<AuthorizationRequestRow>('oauth_authorization_requests')
+      .where({ id })
+      .whereNull('consumed_at')
+      .andWhere('expires_at', '>', now)
+      .update({ consumed_at: now }, ['id']);
+
+    return consumedIds.length === 1;
+  }
 }

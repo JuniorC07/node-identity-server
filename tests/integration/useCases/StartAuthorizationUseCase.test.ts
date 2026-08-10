@@ -14,6 +14,7 @@ import { User } from '@/entities/User.js';
 import { CreateOAuthClientOutput } from '@/useCases/oauth/CreateOAuthClientUseCase.js';
 import { randomUUID } from 'node:crypto';
 import { makeGrantOAuthConsentUseCase } from '@/main/factories/useCases/oauth/makeGrantOAuthConsentUseCase.js';
+import { SHA256SessionTokenService } from '@/adapters/crypto/sha256/SHA256SessionTokenService.js';
 
 let createdSession: null | CreateLocalSessionOutput = null;
 let createdClient: null | CreateOAuthClientOutput = null;
@@ -29,6 +30,8 @@ const readScopeId = randomUUID();
 const writeScopeId = randomUUID();
 const deleteScopeId = randomUUID();
 const audience = 'https://api.example.com/orders';
+const codeVerifier = 'dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk';
+const callbackUri = 'http://localhost:3001/callback';
 
 interface createUserAndSessionOutput {
   user: User;
@@ -162,10 +165,10 @@ async function createUserAndSession(
   ]);
 
   createdClient = await createClient.execute({
-    allowedScopes: ['orders:read', 'orders:write', 'orders:delete'],
+    allowedScopes: ['openid', 'profile', 'orders:read', 'orders:write', 'orders:delete'],
     name: 'client',
     type: 'public',
-    redirectUris: ['http://localhost:3001/callback'],
+    redirectUris: [callbackUri],
   });
   return { sessionOutput: createdSession, user, client: createdClient };
 }
@@ -182,13 +185,16 @@ describe('GET /oauth/authorize', () => {
     await db.destroy();
   });
 
-  function authorizationRequest(scope: string) {
+  function authorizationRequest(
+    scope: string,
+    client: CreateOAuthClientOutput | null = createdClient
+  ) {
     return request(app)
       .get('/oauth/authorize')
       .query({
         response_type: 'code',
-        client_id: createdClient?.client.clientId,
-        redirect_uri: 'http://localhost:3001/callback',
+        client_id: client?.client.clientId,
+        redirect_uri: callbackUri,
         scope,
         state: 'E9Melhoa2OwvFrEMTJgu',
         nonce: 'EMTJguCHaoeK1t8URWbuGJ',
@@ -200,13 +206,52 @@ describe('GET /oauth/authorize', () => {
       ]);
   }
 
-  it('should continue authorization when the profile grants the requested scope', async () => {
+  function authenticatedPost(path: string) {
+    return request(app)
+      .post(path)
+      .set('Cookie', [
+        `${sessionCookieConfig.name}=${createdSession?.rawToken}; Max-Age=1295999; Path=/; HttpOnly; SameSite=Lax`,
+      ]);
+  }
+
+  function getAuthorizationCode(location: string): string {
+    const code = new URL(location).searchParams.get('code');
+
+    expect(code).toBeTruthy();
+    return code!;
+  }
+
+  function exchangeAuthorizationCode(code: string, verifier = codeVerifier) {
+    return request(app).post('/oauth/token').type('form').send({
+      grant_type: 'authorization_code',
+      code,
+      redirect_uri: callbackUri,
+      client_id: createdClient?.client.clientId,
+      code_verifier: verifier,
+    });
+  }
+
+  it('should issue and exchange a one-time authorization code', async () => {
     const response = await authorizationRequest('orders:read');
 
-    expect(response.status).toBe(200);
-    expect(response.body.authorizationRequestToken).toBeDefined();
-    expect(response.body.audiences).toEqual([audience]);
-    expect(response.body.modules).toEqual(['orders']);
+    expect(response.status).toBe(302);
+    expect(response.headers.location).toContain(`${callbackUri}?code=`);
+    expect(response.headers.location).toContain('state=E9Melhoa2OwvFrEMTJgu');
+
+    const code = getAuthorizationCode(response.headers.location);
+    const tokenResponse = await exchangeAuthorizationCode(code);
+
+    expect(tokenResponse.status).toBe(200);
+    expect(tokenResponse.headers['cache-control']).toBe('no-store');
+    expect(tokenResponse.body.access_token).toBeDefined();
+    expect(tokenResponse.body.token_type).toBe('Bearer');
+    expect(tokenResponse.body.scope).toBe('orders:read');
+    expect(tokenResponse.body.id_token).toBeUndefined();
+
+    const replayResponse = await exchangeAuthorizationCode(code);
+
+    expect(replayResponse.status).toBe(400);
+    expect(replayResponse.body.error).toBe('invalid_grant');
   });
 
   it('should redirect to consent when an active consent grant is missing', async () => {
@@ -242,6 +287,45 @@ describe('GET /oauth/authorize', () => {
     expect(response.body.modules).toEqual(['orders']);
   });
 
+  it('should deny consent and preserve state without issuing a code', async () => {
+    const authorizationResponse = await authorizationRequest('orders:write');
+    const location = new URL(authorizationResponse.headers.location, 'http://identity.local');
+    const authorizationRequestToken = location.searchParams.get('authorization_request');
+    const response = await authenticatedPost('/oauth/authorize/decision').send({
+      authorization_request_token: authorizationRequestToken,
+      decision: 'deny',
+    });
+
+    expect(response.status).toBe(303);
+    const callback = new URL(response.headers.location);
+    expect(callback.origin + callback.pathname).toBe(callbackUri);
+    expect(callback.searchParams.get('error')).toBe('access_denied');
+    expect(callback.searchParams.get('state')).toBe('E9Melhoa2OwvFrEMTJgu');
+    expect(callback.searchParams.get('code')).toBeNull();
+  });
+
+  it('should grant consent and exchange the resulting code', async () => {
+    const authorizationResponse = await authorizationRequest('orders:write');
+    const location = new URL(authorizationResponse.headers.location, 'http://identity.local');
+    const authorizationRequestToken = location.searchParams.get('authorization_request');
+    const decisionResponse = await authenticatedPost('/oauth/authorize/decision').send({
+      authorization_request_token: authorizationRequestToken,
+      decision: 'approve',
+    });
+
+    expect(decisionResponse.status).toBe(303);
+    const code = getAuthorizationCode(decisionResponse.headers.location);
+    const wrongVerifierResponse = await exchangeAuthorizationCode(code, 'A'.repeat(43));
+
+    expect(wrongVerifierResponse.status).toBe(400);
+    expect(wrongVerifierResponse.body.error).toBe('invalid_grant');
+
+    const tokenResponse = await exchangeAuthorizationCode(code);
+
+    expect(tokenResponse.status).toBe(200);
+    expect(tokenResponse.body.scope).toBe('orders:write');
+  });
+
   it('should reuse an active consent grant', async () => {
     const grantOAuthConsentUseCase = makeGrantOAuthConsentUseCase();
     await grantOAuthConsentUseCase.execute({
@@ -253,8 +337,87 @@ describe('GET /oauth/authorize', () => {
 
     const response = await authorizationRequest('orders:write');
 
-    expect(response.status).toBe(200);
-    expect(response.body.authorizationRequestToken).toBeDefined();
+    expect(response.status).toBe(302);
+    expect(response.headers.location).toContain(`${callbackUri}?code=`);
+  });
+
+  it('should return an ID token only when openid is requested', async () => {
+    const response = await authorizationRequest('openid');
+    const code = getAuthorizationCode(response.headers.location);
+    const tokenResponse = await exchangeAuthorizationCode(code);
+
+    expect(tokenResponse.status).toBe(200);
+    expect(tokenResponse.body.access_token).toBeDefined();
+    expect(tokenResponse.body.id_token).toBeDefined();
+    expect(tokenResponse.body.id_token.split('.')).toHaveLength(3);
+  });
+
+  it('should reject an expired authorization code', async () => {
+    const response = await authorizationRequest('orders:read');
+    const code = getAuthorizationCode(response.headers.location);
+    const codeHash = new SHA256SessionTokenService().hash(code);
+    const now = Date.now();
+
+    await db('oauth_authorization_codes')
+      .where({ code_hash: codeHash })
+      .update({
+        created_at: new Date(now - 120_000),
+        expires_at: new Date(now - 60_000),
+      });
+
+    const tokenResponse = await exchangeAuthorizationCode(code);
+
+    expect(tokenResponse.status).toBe(400);
+    expect(tokenResponse.body.error).toBe('invalid_grant');
+  });
+
+  it('should require the exact redirect URI again at the token endpoint', async () => {
+    const response = await authorizationRequest('orders:read');
+    const code = getAuthorizationCode(response.headers.location);
+    const wrongRedirectResponse = await request(app)
+      .post('/oauth/token')
+      .type('form')
+      .send({
+        grant_type: 'authorization_code',
+        code,
+        redirect_uri: `${callbackUri}/other`,
+        client_id: createdClient?.client.clientId,
+        code_verifier: codeVerifier,
+      });
+
+    expect(wrongRedirectResponse.status).toBe(400);
+    expect(wrongRedirectResponse.body.error).toBe('invalid_grant');
+
+    const tokenResponse = await exchangeAuthorizationCode(code);
+    expect(tokenResponse.status).toBe(200);
+  });
+
+  it('should authenticate a confidential client with HTTP Basic', async () => {
+    const confidentialClient = await makeCreateOAuthClientUseCase().execute({
+      allowedScopes: ['openid'],
+      name: 'Confidential client',
+      type: 'confidential',
+      redirectUris: [callbackUri],
+    });
+    const authorizationResponse = await authorizationRequest('openid', confidentialClient);
+    const code = getAuthorizationCode(authorizationResponse.headers.location);
+    const credentials = Buffer.from(
+      `${confidentialClient.client.clientId}:${confidentialClient.clientSecret}`
+    ).toString('base64');
+    const tokenResponse = await request(app)
+      .post('/oauth/token')
+      .set('Authorization', `Basic ${credentials}`)
+      .type('form')
+      .send({
+        grant_type: 'authorization_code',
+        code,
+        redirect_uri: callbackUri,
+        code_verifier: codeVerifier,
+      });
+
+    expect(tokenResponse.status).toBe(200);
+    expect(tokenResponse.body.access_token).toBeDefined();
+    expect(tokenResponse.body.id_token).toBeDefined();
   });
 
   it('should deny a scope not granted by the profile for the audience', async () => {

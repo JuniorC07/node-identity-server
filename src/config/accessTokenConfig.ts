@@ -32,10 +32,13 @@ function required(name: string, decodeBase64 = false): string {
   return value;
 }
 
+const issuer = required('ACCESS_TOKEN_ISSUER');
+
 export const accessTokenConfig = {
   algorithm: 'RS256' as const,
-  issuer: required('ACCESS_TOKEN_ISSUER'),
+  issuer,
   lifetimeInSeconds: requiredNumber('ACCESS_TOKEN_LIFETIME_SECONDS', 600),
+  userInfoAudience: process.env.OIDC_USERINFO_AUDIENCE ?? `${issuer.replace(/\/$/, '')}/userinfo`,
   signingKey: {
     id: required('ACCESS_TOKEN_KEY_ID'),
     privateKey: required('ACCESS_TOKEN_PRIVATE_KEY', true),

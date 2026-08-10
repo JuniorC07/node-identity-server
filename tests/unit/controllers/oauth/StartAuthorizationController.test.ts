@@ -6,6 +6,7 @@ import type {
   StartAuthorizationRequestInput,
   StartAuthorizationUseCase,
 } from '@/useCases/oauth/StartAuthorizationUseCase.js';
+import type { DecideAuthorizationUseCase } from '@/useCases/oauth/DecideAuthorizationUseCase.js';
 import type { AuthorizeRequestValidator } from '@/validators/oauth/StartAuthorization/StartAuthorizationValidator.js';
 
 const validInput: StartAuthorizationRequestInput = {
@@ -21,15 +22,17 @@ const validInput: StartAuthorizationRequestInput = {
 
 function makeSut() {
   const execute = vi.fn<StartAuthorizationUseCase['execute']>();
+  const decide = vi.fn<DecideAuthorizationUseCase['execute']>();
   const validate = vi.fn<AuthorizeRequestValidator['validate']>().mockReturnValue(validInput);
   const controller = new StartAuthorizationController(
     { execute } as unknown as StartAuthorizationUseCase,
+    { execute: decide } as unknown as DecideAuthorizationUseCase,
     { validate } as AuthorizeRequestValidator,
     '/login',
     '/consent'
   );
 
-  return { controller, execute, validate };
+  return { controller, execute, decide, validate };
 }
 
 describe('StartAuthorizationController', () => {
@@ -58,7 +61,7 @@ describe('StartAuthorizationController', () => {
   });
 
   it('should start authorization with the resolved user and session', async () => {
-    const { controller, execute } = makeSut();
+    const { controller, execute, decide } = makeSut();
     execute.mockResolvedValue({
       authenticationRequired: false,
       consentRequired: false,
@@ -78,9 +81,11 @@ describe('StartAuthorizationController', () => {
         identityId: 'identity-id',
       },
     } as Request;
-    const json = vi.fn();
-    const status = vi.fn().mockReturnValue({ json });
-    const res = { status } as unknown as Response;
+    decide.mockResolvedValue({
+      redirectUri: 'https://client.example.com/callback?code=code&state=state',
+    });
+    const redirect = vi.fn();
+    const res = { redirect } as unknown as Response;
 
     await controller.handle(req, res);
 
@@ -89,15 +94,16 @@ describe('StartAuthorizationController', () => {
       userId: 'user-id',
       sessionId: 'session-id',
     });
-    expect(status).toHaveBeenCalledWith(200);
-    expect(json).toHaveBeenCalledWith({
+    expect(decide).toHaveBeenCalledWith({
       authorizationRequestToken: 'authorization-request-token',
-      client: { clientId: 'client-id', name: 'Example client' },
-      requestedScopes: ['openid', 'profile'],
-      missingConsentScopes: [],
-      audiences: [],
-      modules: [],
+      decision: 'approve',
+      userId: 'user-id',
+      sessionId: 'session-id',
     });
+    expect(redirect).toHaveBeenCalledWith(
+      302,
+      'https://client.example.com/callback?code=code&state=state'
+    );
   });
 
   it('should redirect to consent when a requested scope has no active grant', async () => {

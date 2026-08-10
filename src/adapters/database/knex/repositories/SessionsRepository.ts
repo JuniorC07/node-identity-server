@@ -50,6 +50,16 @@ export class KnexSessionsRepository implements ISessionsRepository {
     return this.toDomain(sessionRow);
   }
 
+  async findActiveById(id: string): Promise<Session | null> {
+    const sessionRow = await this.db<SessionRow>('sessions')
+      .where({ id })
+      .andWhere('expires_at', '>', new Date())
+      .andWhere('revoked_at', null)
+      .first();
+
+    return sessionRow ? this.toDomain(sessionRow) : null;
+  }
+
   async updateLastUsedAt(sessionId: string): Promise<void> {
     await this.db<SessionRow>('sessions')
       .update({
