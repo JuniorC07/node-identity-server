@@ -14,8 +14,10 @@ import type { IPkceService } from '@/services/IPkceService.js';
 import type { ISessionTokenService } from '@/services/ISessionTokenService.js';
 import type { ResolveRegisteredOAuthScopesUseCase } from '@/useCases/oauth/_internal/ResolveRegisteredOAuthScopesUseCase.js';
 import { ValidateUserScopesUseCase } from '@/useCases/oauth/_internal/ValidateUserScopesUseCase.js';
+import { EvaluateOAuthConsentUseCase } from '@/useCases/oauth/_internal/EvaluateOAuthConsentUseCase.js';
 export interface AuthorizationStartedOutput {
   authenticationRequired: false;
+  consentRequired: boolean;
   authorizationRequestToken: string;
   client: {
     clientId: string;
@@ -54,6 +56,7 @@ export class StartAuthorizationUseCase {
     private readonly pkceService: IPkceService,
     private readonly resolveRegisteredOAuthScopesUseCase: ResolveRegisteredOAuthScopesUseCase,
     private readonly validateUserScopesUseCase: ValidateUserScopesUseCase,
+    private readonly evaluateOAuthConsentUseCase: EvaluateOAuthConsentUseCase,
     private readonly requestLifetimeInSeconds: number
   ) {}
   async execute(input: StartAuthorizationInput): Promise<StartAuthorizationOutput> {
@@ -108,6 +111,12 @@ export class StartAuthorizationUseCase {
       scopes,
     });
 
+    const { consentRequired } = await this.evaluateOAuthConsentUseCase.execute({
+      oauthClientId: client.clientId,
+      scopes,
+      userId: input.userId,
+    });
+
     const { rawToken, tokenHash } = this.requestTokenService.generate();
 
     const now = new Date();
@@ -132,6 +141,7 @@ export class StartAuthorizationUseCase {
     await this.authorizationRequestsRepository.create(authorizationRequest);
 
     return {
+      consentRequired,
       authenticationRequired: false,
       authorizationRequestToken: rawToken,
       client: {
