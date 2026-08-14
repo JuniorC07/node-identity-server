@@ -73,9 +73,17 @@ export class KnexOAuthClientsRepository implements IOAuthClientsRepository {
   }
 
   async findByClientId(clientId: string): Promise<OAuthClient | null> {
-    const clientRow = await this.db<OAuthClientRow>('oauth_clients')
-      .where({ client_id: clientId })
-      .first();
+    return this.findOne({ client_id: clientId });
+  }
+
+  async findById(id: string): Promise<OAuthClient | null> {
+    return this.findOne({ id });
+  }
+
+  private async findOne(
+    criteria: Partial<Pick<OAuthClientRow, 'id' | 'client_id'>>
+  ): Promise<OAuthClient | null> {
+    const clientRow = await this.db<OAuthClientRow>('oauth_clients').where(criteria).first();
 
     if (!clientRow) {
       return null;
@@ -135,6 +143,8 @@ export class KnexOAuthClientsRepository implements IOAuthClientsRepository {
       });
     }
 
-    throw new Error(`Invalid persisted OAuth client state for client ${clientRow.client_id}`);
+    throw new BadRequestError({
+      message: `Invalid persisted OAuth client state for client ${clientRow.client_id}`,
+    });
   }
 }

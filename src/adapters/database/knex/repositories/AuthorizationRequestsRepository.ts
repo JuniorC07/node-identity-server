@@ -41,4 +41,33 @@ export class KnexAuthorizationRequestsRepository implements IAuthorizationReques
       consumed_at: request.consumedAt,
     });
   }
+
+  async findPendingByTokenHash(tokenHash: string, now: Date): Promise<AuthorizationRequest | null> {
+    const row = await this.db<AuthorizationRequestRow>('oauth_authorization_requests')
+      .where({ request_token_hash: tokenHash })
+      .whereNull('consumed_at')
+      .andWhere('expires_at', '>', now)
+      .first();
+
+    if (!row) {
+      return null;
+    }
+
+    return new AuthorizationRequest({
+      id: row.id,
+      requestTokenHash: row.request_token_hash,
+      oauthClientId: row.oauth_client_id,
+      userId: row.user_id,
+      sessionId: row.session_id,
+      redirectUri: row.redirect_uri,
+      requestedScopes: row.requested_scopes,
+      state: row.state,
+      nonce: row.nonce,
+      codeChallenge: row.code_challenge,
+      codeChallengeMethod: row.code_challenge_method,
+      createdAt: new Date(row.created_at),
+      expiresAt: new Date(row.expires_at),
+      consumedAt: row.consumed_at ? new Date(row.consumed_at) : null,
+    });
+  }
 }

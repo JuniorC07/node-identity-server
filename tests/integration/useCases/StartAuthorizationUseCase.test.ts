@@ -81,7 +81,7 @@ describe('POST /oauth/authorize', () => {
       .set('Cookie', [
         `${sessionCookieConfig.name}=${createdSession?.rawToken}; Max-Age=1295999; Path=/; HttpOnly; SameSite=Lax`,
       ]);
-    expect(response.status).toBe(200);
-    expect(response.body.authorizationRequestToken).toBeDefined();
+    expect(response.status).toBe(302);
+    expect(response.headers.location).toBeDefined();
   });
 });

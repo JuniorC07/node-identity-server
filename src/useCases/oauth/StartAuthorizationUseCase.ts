@@ -112,7 +112,7 @@ export class StartAuthorizationUseCase {
     });
 
     const { consentRequired } = await this.evaluateOAuthConsentUseCase.execute({
-      oauthClientId: client.clientId,
+      oauthClientId: client.id,
       scopes,
       userId: input.userId,
     });
