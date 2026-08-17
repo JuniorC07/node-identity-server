@@ -197,7 +197,7 @@ export async function up(knex: Knex): Promise<void> {
       key: 'openid',
       type: 'oidc',
       description: 'Authenticate using OpenID Connect',
-      consent_required: false,
+      consent_required: true,
       enabled: true,
       created_at: now,
       updated_at: now,

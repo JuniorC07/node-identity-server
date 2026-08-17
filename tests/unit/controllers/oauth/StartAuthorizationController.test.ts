@@ -6,6 +6,7 @@ import type {
   StartAuthorizationRequestInput,
   StartAuthorizationUseCase,
 } from '@/useCases/oauth/StartAuthorizationUseCase.js';
+import type { CreateOAuthAuthorizationCodeUseCase } from '@/useCases/oauth/_internal/CreateOAuthAuthorizationCodeUseCase.js';
 import type { AuthorizeRequestValidator } from '@/validators/oauth/StartAuthorization/StartAuthorizationValidator.js';
 
 const validInput: StartAuthorizationRequestInput = {
@@ -21,19 +22,22 @@ const validInput: StartAuthorizationRequestInput = {
 
 function makeSut() {
   const execute = vi.fn<StartAuthorizationUseCase['execute']>();
+  const createAuthorizationCode = vi.fn<CreateOAuthAuthorizationCodeUseCase['execute']>();
   const validate = vi.fn<AuthorizeRequestValidator['validate']>().mockReturnValue(validInput);
   const controller = new StartAuthorizationController(
     { execute } as unknown as StartAuthorizationUseCase,
+    { execute: createAuthorizationCode } as unknown as CreateOAuthAuthorizationCodeUseCase,
     { validate } as AuthorizeRequestValidator,
-    '/login'
+    '/login',
+    '/consent'
   );
 
-  return { controller, execute, validate };
+  return { controller, createAuthorizationCode, execute, validate };
 }
 
 describe('StartAuthorizationController', () => {
   it('should redirect an unauthenticated user to login after validating the request', async () => {
-    const { controller, execute, validate } = makeSut();
+    const { controller, createAuthorizationCode, execute, validate } = makeSut();
     execute.mockResolvedValue({ authenticationRequired: true });
     const req = {
       query: { response_type: 'code' },
@@ -54,13 +58,18 @@ describe('StartAuthorizationController', () => {
       302,
       '/login?return_to=%2Foauth%2Fauthorize%3Fresponse_type%3Dcode%26client_id%3Dclient-id'
     );
+    expect(createAuthorizationCode).not.toHaveBeenCalled();
   });
 
-  it('should start authorization with the resolved user and session', async () => {
-    const { controller, execute } = makeSut();
+  it('should redirect to the consent page when consent is required', async () => {
+    const { controller, createAuthorizationCode, execute } = makeSut();
     execute.mockResolvedValue({
       authenticationRequired: false,
+      consentRequired: true,
       authorizationRequestToken: 'authorization-request-token',
+      authorizationRequestId: 'authorization-request-id',
+      redirectUri: 'https://client.example.com/callback',
+      state: 'state-with-enough-entropy',
       client: { clientId: 'client-id', name: 'Example client' },
       requestedScopes: ['openid', 'profile'],
     });
@@ -73,9 +82,41 @@ describe('StartAuthorizationController', () => {
         identityId: 'identity-id',
       },
     } as Request;
-    const json = vi.fn();
-    const status = vi.fn().mockReturnValue({ json });
-    const res = { status } as unknown as Response;
+    const redirect = vi.fn();
+
+    await controller.handle(req, { redirect } as unknown as Response);
+
+    expect(redirect).toHaveBeenCalledWith(
+      302,
+      '/consent?authorization_request=authorization-request-token'
+    );
+    expect(createAuthorizationCode).not.toHaveBeenCalled();
+  });
+
+  it('should create an authorization code and redirect to the client callback', async () => {
+    const { controller, createAuthorizationCode, execute } = makeSut();
+    execute.mockResolvedValue({
+      authenticationRequired: false,
+      consentRequired: false,
+      authorizationRequestToken: 'authorization-request-token',
+      authorizationRequestId: 'authorization-request-id',
+      redirectUri: 'https://client.example.com/callback',
+      state: 'state-with-enough-entropy',
+      client: { clientId: 'client-id', name: 'Example client' },
+      requestedScopes: ['openid', 'profile'],
+    });
+    createAuthorizationCode.mockResolvedValue({ rawCode: 'raw-code', codeHash: 'code-hash' });
+    const req = {
+      query: {},
+      originalUrl: '/oauth/authorize',
+      auth: {
+        userId: 'user-id',
+        sessionId: 'session-id',
+        identityId: 'identity-id',
+      },
+    } as Request;
+    const redirect = vi.fn();
+    const res = { redirect } as unknown as Response;
 
     await controller.handle(req, res);
 
@@ -84,11 +125,12 @@ describe('StartAuthorizationController', () => {
       userId: 'user-id',
       sessionId: 'session-id',
     });
-    expect(status).toHaveBeenCalledWith(200);
-    expect(json).toHaveBeenCalledWith({
-      authorizationRequestToken: 'authorization-request-token',
-      client: { clientId: 'client-id', name: 'Example client' },
-      requestedScopes: ['openid', 'profile'],
+    expect(createAuthorizationCode).toHaveBeenCalledWith({
+      authorizationRequestId: 'authorization-request-id',
     });
+    expect(redirect).toHaveBeenCalledWith(
+      302,
+      'https://client.example.com/callback?code=raw-code&state=state-with-enough-entropy'
+    );
   });
 });

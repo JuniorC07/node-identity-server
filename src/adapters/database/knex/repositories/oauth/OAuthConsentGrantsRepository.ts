@@ -4,6 +4,7 @@ import type {
   FindActiveConsentScopeIdsInput,
   IOAuthConsentGrantsRepository,
 } from '@/repositories/oauth/IOAuthConsentGrantsRepository.js';
+import { OAuthConsentGrant } from '@/entities/oauth/OAuthConsentGrant.js';
 
 interface OAuthConsentGrantRow {
   id: string;
@@ -36,5 +37,30 @@ export class KnexOAuthConsentGrantsRepository implements IOAuthConsentGrantsRepo
       });
 
     return [...new Set(rows.map((row) => row.scope_id))];
+  }
+
+  async saveAll(grants: OAuthConsentGrant[]): Promise<void> {
+    if (grants.length === 0) {
+      return;
+    }
+
+    await this.db<OAuthConsentGrantRow>('oauth_consent_grants')
+      .insert(
+        grants.map((grant) => ({
+          id: grant.id,
+          user_id: grant.userId,
+          oauth_client_id: grant.oauthClientId,
+          scope_id: grant.scopeId,
+          granted_at: grant.grantedAt,
+          expires_at: grant.expiresAt,
+          revoked_at: grant.revokedAt,
+        }))
+      )
+      .onConflict(['user_id', 'oauth_client_id', 'scope_id'])
+      .merge({
+        granted_at: this.db.raw('excluded.granted_at'),
+        expires_at: this.db.raw('excluded.expires_at'),
+        revoked_at: this.db.raw('excluded.revoked_at'),
+      });
   }
 }

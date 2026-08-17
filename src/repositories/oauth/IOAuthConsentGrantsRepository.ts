@@ -1,3 +1,4 @@
+import { OAuthConsentGrant } from '@/entities/oauth/OAuthConsentGrant.js';
 export interface FindActiveConsentScopeIdsInput {
   userId: string;
   oauthClientId: string;
@@ -7,4 +8,5 @@ export interface FindActiveConsentScopeIdsInput {
 
 export interface IOAuthConsentGrantsRepository {
   findActiveScopeIds(input: FindActiveConsentScopeIdsInput): Promise<string[]>;
+  saveAll(grants: OAuthConsentGrant[]): Promise<void>;
 }

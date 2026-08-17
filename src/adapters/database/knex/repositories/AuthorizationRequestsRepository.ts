@@ -42,6 +42,20 @@ export class KnexAuthorizationRequestsRepository implements IAuthorizationReques
     });
   }
 
+  async findPendingById(id: string, now: Date): Promise<AuthorizationRequest | null> {
+    const row = await this.db<AuthorizationRequestRow>('oauth_authorization_requests')
+      .where({ id })
+      .whereNull('consumed_at')
+      .andWhere('expires_at', '>', now)
+      .first();
+
+    if (!row) {
+      return null;
+    }
+
+    return this.toDomain(row);
+  }
+
   async findPendingByTokenHash(tokenHash: string, now: Date): Promise<AuthorizationRequest | null> {
     const row = await this.db<AuthorizationRequestRow>('oauth_authorization_requests')
       .where({ request_token_hash: tokenHash })
@@ -53,6 +67,20 @@ export class KnexAuthorizationRequestsRepository implements IAuthorizationReques
       return null;
     }
 
+    return this.toDomain(row);
+  }
+
+  async consume(id: string, now: Date): Promise<boolean> {
+    const consumedIds = await this.db<AuthorizationRequestRow>('oauth_authorization_requests')
+      .where({ id })
+      .whereNull('consumed_at')
+      .andWhere('expires_at', '>', now)
+      .update({ consumed_at: now }, ['id']);
+
+    return consumedIds.length === 1;
+  }
+
+  private toDomain(row: AuthorizationRequestRow): AuthorizationRequest {
     return new AuthorizationRequest({
       id: row.id,
       requestTokenHash: row.request_token_hash,

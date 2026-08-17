@@ -1,11 +1,13 @@
 import type { Request, Response } from 'express';
 
 import type { StartAuthorizationUseCase } from '@/useCases/oauth/StartAuthorizationUseCase.js';
+import type { CreateOAuthAuthorizationCodeUseCase } from '@/useCases/oauth/_internal/CreateOAuthAuthorizationCodeUseCase.js';
 import type { AuthorizeRequestValidator } from '@/validators/oauth/StartAuthorization/StartAuthorizationValidator.js';
 
 export class StartAuthorizationController {
   constructor(
     private readonly startAuthorizationUseCase: StartAuthorizationUseCase,
+    private readonly createOAuthAuthorizationCodeUseCase: CreateOAuthAuthorizationCodeUseCase,
     private readonly validator: AuthorizeRequestValidator,
     private readonly loginPageUrl: string,
     private readonly consentPageUrl: string
@@ -31,12 +33,17 @@ export class StartAuthorizationController {
         authorization_request: output.authorizationRequestToken,
       });
       const querySeparator = this.consentPageUrl.includes('?') ? '&' : '?';
-
       res.redirect(302, `${this.consentPageUrl}${querySeparator}${consentQuery.toString()}`);
       return;
     }
-    const { authenticationRequired: _authenticationRequired, ...responseBody } = output;
 
-    res.status(200).json(responseBody);
+    const authorizationCode = await this.createOAuthAuthorizationCodeUseCase.execute({
+      authorizationRequestId: output.authorizationRequestId,
+    });
+
+    res.redirect( 
+      302,
+      `${output.redirectUri}?code=${authorizationCode.rawCode}&state=${output.state}`
+    );
   };
 }

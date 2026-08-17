@@ -19,6 +19,9 @@ export interface AuthorizationStartedOutput {
   authenticationRequired: false;
   consentRequired: boolean;
   authorizationRequestToken: string;
+  authorizationRequestId: string;
+  redirectUri: string;
+  state: string;
   client: {
     clientId: string;
     name: string;
@@ -141,6 +144,9 @@ export class StartAuthorizationUseCase {
     await this.authorizationRequestsRepository.create(authorizationRequest);
 
     return {
+      authorizationRequestId: authorizationRequest.id,
+      redirectUri: authorizationRequest.redirectUri,
+      state: authorizationRequest.state,
       consentRequired,
       authenticationRequired: false,
       authorizationRequestToken: rawToken,

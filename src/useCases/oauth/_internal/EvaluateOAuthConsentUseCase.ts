@@ -7,13 +7,9 @@ export interface EvaluateOAuthConsentInput {
   scopes: OAuthScope[];
 }
 
-export interface OAuthConsentScopeSummary {
-  key: string;
-  description: string;
-}
 export interface EvaluateUserOAuthAuthorizationOutput {
   consentRequired: boolean;
-  missingConsentScopes: OAuthConsentScopeSummary[];
+  missingConsentScopes: OAuthScope[];
 }
 
 export class EvaluateOAuthConsentUseCase {
@@ -28,12 +24,9 @@ export class EvaluateOAuthConsentUseCase {
       now: new Date(),
     });
     const activeConsentScopeIdSet = new Set(activeConsentScopeIds);
-    const missingConsentScopes = scopesRequiringConsent
-      .filter((scope) => !activeConsentScopeIdSet.has(scope.id))
-      .map((scope) => ({
-        key: scope.key,
-        description: scope.description,
-      }));
+    const missingConsentScopes = scopesRequiringConsent.filter(
+      (scope) => !activeConsentScopeIdSet.has(scope.id)
+    );
 
     return {
       consentRequired: missingConsentScopes.length > 0,
