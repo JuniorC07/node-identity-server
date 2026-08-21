@@ -34,6 +34,12 @@ export class PemTokenKeyStoreService implements ITokenKeyStoreService {
     return this.verificationKeyPromise;
   }
 
+  getVerificationKeys(): Promise<readonly TokenVerificationKey[]> {
+    this.verificationKeyPromise ??= this.loadVerificationKey();
+
+    return Promise.all([this.verificationKeyPromise]);
+  }
+
   private async loadSigningKey(): Promise<TokenSigningKey> {
     const privateKey = await importPKCS8(this.config.privateKeyPem, this.config.algorithm);
 

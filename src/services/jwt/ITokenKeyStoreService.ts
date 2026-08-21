@@ -13,4 +13,5 @@ export interface TokenVerificationKey {
 export interface ITokenKeyStoreService {
   getSigningKey(): Promise<TokenSigningKey>;
   findVerificationKey(keyId: string): Promise<TokenVerificationKey | null>;
+  getVerificationKeys(): Promise<readonly TokenVerificationKey[]>;
 }
