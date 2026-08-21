@@ -6,6 +6,8 @@ import { makeValidateUserScopesUseCase } from '@/main/factories/useCases/oauth/_
 import { makePkceService } from '@/main/factories/services/makePkceService.js';
 import { makeSHA256SessionTokenService } from '@/main/factories/services/makeSessionTokenService.js';
 import { makeEvaluateOAuthConsentUseCase } from '@/main/factories/useCases/oauth/_internal/makeEvaluateOAuthConsentUseCase.js';
+import { makeCreateOAuthAuthorizationCodeUseCase } from '@/main/factories/useCases/oauth/_internal/makeCreateOAuthAuthorizationCodeUseCase.js';
+import { makeAuthorizationCodeIssuanceUnitOfWork } from '@/main/factories/unitOfWork/makeAuthorizationCodeIssuanceUnitOfWork.js';
 import { StartAuthorizationUseCase } from '@/useCases/oauth/StartAuthorizationUseCase.js';
 
 export function makeStartAuthorizationUseCase(): StartAuthorizationUseCase {
@@ -16,6 +18,7 @@ export function makeStartAuthorizationUseCase(): StartAuthorizationUseCase {
   const resolveRegisteredOAuthScopesUseCase = makeResolveRegisteredOAuthScopesUseCase();
   const validateUserScopesUseCase = makeValidateUserScopesUseCase();
   const evaluateOAuthConsentUseCase = makeEvaluateOAuthConsentUseCase();
+  const authorizationCodeIssuanceUnitOfWork = makeAuthorizationCodeIssuanceUnitOfWork();
 
   return new StartAuthorizationUseCase(
     clientsRepository,
@@ -25,6 +28,8 @@ export function makeStartAuthorizationUseCase(): StartAuthorizationUseCase {
     resolveRegisteredOAuthScopesUseCase,
     validateUserScopesUseCase,
     evaluateOAuthConsentUseCase,
+    authorizationCodeIssuanceUnitOfWork,
+    makeCreateOAuthAuthorizationCodeUseCase,
     authorizationRequestConfig.lifetimeInSeconds
   );
 }

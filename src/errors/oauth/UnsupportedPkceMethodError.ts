@@ -1,10 +1,10 @@
-import { AppError } from '@/errors/AppError.js';
+import { OAuthError } from '@/errors/oauth/OAuthError.js';
 
-export class UnsupportedPkceMethodError extends AppError {
+export class UnsupportedPkceMethodError extends OAuthError {
   constructor() {
     super({
       statusCode: 400,
-      code: 'unsupported_pkce_method',
+      code: 'invalid_request',
       message: 'Only the S256 PKCE challenge method is supported',
     });
   }

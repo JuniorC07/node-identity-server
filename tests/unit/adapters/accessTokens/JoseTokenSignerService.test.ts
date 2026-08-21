@@ -1,8 +1,8 @@
 import { generateKeyPair, jwtVerify } from 'jose';
 import { beforeAll, describe, expect, it } from 'vitest';
 
-import { JoseTokenSignerService } from '@/adapters/accessTokens/JoseTokenSignerService.js';
-import type { ITokenKeyStoreService } from '@/services/accessTokens/ITokenKeyStoreService.js';
+import { JoseTokenSignerService } from '@/adapters/jwt/jose/JoseTokenSignerService.js';
+import type { ITokenKeyStoreService } from '@/services/jwt/ITokenKeyStoreService.js';
 
 const KEY_ID = 'test-key-id';
 const ISSUER = 'https://identity.example.com';
@@ -34,7 +34,7 @@ describe('JoseTokenSignerService', () => {
     };
   });
 
-  it('should sign an access token with its session id and explicit type', async () => {
+  it('should sign a token with generic custom claims', async () => {
     const signer = new JoseTokenSignerService(keyStore, {
       issuer: ISSUER,
       algorithm: 'RS256',
@@ -42,21 +42,28 @@ describe('JoseTokenSignerService', () => {
 
     const result = await signer.sign({
       subject: 'user-id',
-      sessionId: 'session-id',
       audience: AUDIENCE,
       expiresInSeconds: 600,
+      typ: 'JWT',
+      claims: {
+        sid: 'session-id',
+        client_id: 'client-id',
+        scope: 'openid profile',
+      },
     });
 
     const { payload, protectedHeader } = await jwtVerify(result.token, publicKey, {
       algorithms: ['RS256'],
       issuer: ISSUER,
       audience: AUDIENCE,
-      typ: 'at+jwt',
+      typ: 'JWT',
     });
 
     expect(protectedHeader.kid).toBe(KEY_ID);
     expect(payload.sub).toBe('user-id');
     expect(payload.sid).toBe('session-id');
+    expect(payload.client_id).toBe('client-id');
+    expect(payload.scope).toBe('openid profile');
     expect(result.expiresAt.getTime() - result.issuedAt.getTime()).toBe(600_000);
   });
 });

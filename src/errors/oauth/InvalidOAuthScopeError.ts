@@ -1,10 +1,10 @@
-import { AppError } from '@/errors/AppError.js';
+import { OAuthError } from '@/errors/oauth/OAuthError.js';
 
-export class InvalidOAuthScopeError extends AppError {
+export class InvalidOAuthScopeError extends OAuthError {
   constructor() {
     super({
       statusCode: 400,
-      code: 'invalid_oauth_scope',
+      code: 'invalid_scope',
       message: 'One or more requested OAuth scopes are invalid',
     });
   }

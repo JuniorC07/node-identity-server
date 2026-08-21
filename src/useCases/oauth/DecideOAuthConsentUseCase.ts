@@ -7,8 +7,9 @@ import type { IAuthorizationApprovalUnitOfWork } from '@/repositories/oauth/IAut
 import type { ISessionTokenService } from '@/services/ISessionTokenService.js';
 import type { EvaluateOAuthConsentUseCase } from '@/useCases/oauth/_internal/EvaluateOAuthConsentUseCase.js';
 import type { ResolveRegisteredOAuthScopesUseCase } from '@/useCases/oauth/_internal/ResolveRegisteredOAuthScopesUseCase.js';
-import type { CreateOAuthAuthorizationCodeUseCaseFactory } from '@/main/factories/useCases/oauth/_internal/makeCreateOAuthAuthorizationCodeUseCase.js';
+import type { CreateOAuthAuthorizationCodeUseCaseFactory } from '@/useCases/oauth/_internal/CreateOAuthAuthorizationCodeUseCase.js';
 import { AuthorizationRequest } from '@/entities/AuthorizationRequest.js';
+import { buildUri } from '@/utils/buildUri.js';
 
 export interface DecideOAuthConsentRequestInput {
   authorizationRequestToken: string;
@@ -62,7 +63,7 @@ export class DecideOAuthConsentUseCase {
     if (input.decision === 'deny') {
       await this.authorizationRequestsRepository.consume(authorizationRequest.id, now);
       return {
-        redirectUri: this.buildRedirectUri(authorizationRequest.redirectUri, {
+        redirectUri: buildUri(authorizationRequest.redirectUri, {
           error: 'access_denied',
           state: authorizationRequest.state,
         }),
@@ -76,7 +77,7 @@ export class DecideOAuthConsentUseCase {
     });
 
     return {
-      redirectUri: this.buildRedirectUri(authorizationRequest.redirectUri, {
+      redirectUri: buildUri(authorizationRequest.redirectUri, {
         code: rawCode,
         state: authorizationRequest.state,
       }),
@@ -113,12 +114,12 @@ export class DecideOAuthConsentUseCase {
       );
 
     return this.authorizationApprovalUnitOfWork.execute(async (repositories) => {
-      await repositories.authorizationRequests.consume(authorizationRequest.id, now);
       await repositories.consentGrants.saveAll(consentGrants);
 
-      const createOAuthAuthorizationCodeUseCase = this.createOAuthAuthorizationCodeUseCaseFactory(
-        repositories.authorizationCodes
-      );
+      const createOAuthAuthorizationCodeUseCase = this.createOAuthAuthorizationCodeUseCaseFactory({
+        authorizationRequests: repositories.authorizationRequests,
+        authorizationCodes: repositories.authorizationCodes,
+      });
 
       return createOAuthAuthorizationCodeUseCase.execute({
         authorizationRequestId: authorizationRequest.id,
@@ -126,13 +127,4 @@ export class DecideOAuthConsentUseCase {
     });
   }
 
-  private buildRedirectUri(redirectUri: string, parameters: Record<string, string>): string {
-    const url = new URL(redirectUri);
-
-    for (const [key, value] of Object.entries(parameters)) {
-      url.searchParams.set(key, value);
-    }
-
-    return url.toString();
-  }
 }

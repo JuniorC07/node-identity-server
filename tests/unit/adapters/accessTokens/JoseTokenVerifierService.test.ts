@@ -1,13 +1,9 @@
 import { generateKeyPair, SignJWT } from 'jose';
 import { beforeAll, describe, expect, it } from 'vitest';
 
-import { JoseTokenVerifierService } from '@/adapters/accessTokens/JoseTokenVerifierService.js';
-import { AccessTokenExpiredError } from '@/errors/accessTokens/AccessTokenExpiredError.js';
-import { InvalidAccessTokenAudienceError } from '@/errors/accessTokens/InvalidAccessTokenAudienceError.js';
-import { InvalidAccessTokenError } from '@/errors/accessTokens/InvalidAccessTokenError.js';
-import { InvalidAccessTokenIssuerError } from '@/errors/accessTokens/InvalidAccessTokenIssuerError.js';
-import { InvalidAccessTokenKeyIdError } from '@/errors/accessTokens/InvalidAccessTokenKeyIdError.js';
-import type { ITokenKeyStoreService } from '@/services/accessTokens/ITokenKeyStoreService.js';
+import { JoseTokenVerifierService } from '@/adapters/jwt/jose/JoseTokenVerifierService.js';
+import { TokenVerificationError } from '@/errors/jwt/TokenVerificationError.js';
+import type { ITokenKeyStoreService } from '@/services/jwt/ITokenKeyStoreService.js';
 
 const KEY_ID = 'test-key-id';
 const ISSUER = 'https://identity.example.com';
@@ -41,7 +37,7 @@ async function makeToken(
       : options.expiresAt;
   const protectedHeader = {
     alg: 'RS256',
-    typ: options.type ?? 'at+jwt',
+    typ: options.type ?? 'JWT',
     ...(options.omitKeyId ? {} : { kid: options.keyId ?? KEY_ID }),
   };
 
@@ -99,18 +95,21 @@ describe('JoseTokenVerifierService', () => {
     });
   });
 
-  it('should return all claims from a valid access token', async () => {
-    const token = await makeToken({ sid: 'session-id' });
+  it('should return the standard and custom claims from a valid token', async () => {
+    const token = await makeToken({ sid: 'session-id', nonce: 'nonce' });
 
-    const claims = await verifier.verify({ token, audience: AUDIENCE });
+    const claims = await verifier.verify({ token, audience: AUDIENCE, expectedTyp: 'JWT' });
 
     expect(claims).toEqual({
       issuer: ISSUER,
       subject: 'user-id',
-      sessionId: 'session-id',
       audience: [AUDIENCE],
       issuedAt: expect.any(Date),
       expiresAt: expect.any(Date),
+      claims: {
+        sid: 'session-id',
+        nonce: 'nonce',
+      },
     });
     expect(claims.expiresAt.getTime()).toBeGreaterThan(claims.issuedAt.getTime());
   });
@@ -119,35 +118,25 @@ describe('JoseTokenVerifierService', () => {
     const audiences = [AUDIENCE, 'another-service'];
     const token = await makeToken({ sid: 'session-id' }, { audience: audiences });
 
-    const claims = await verifier.verify({ token, audience: AUDIENCE });
+    const claims = await verifier.verify({ token, audience: AUDIENCE, expectedTyp: 'JWT' });
 
     expect(claims.audience).toEqual(audiences);
   });
 
-  it.each([
-    { description: 'missing', payload: {} },
-    { description: 'empty', payload: { sid: '' } },
-    { description: 'not a string', payload: { sid: 123 } },
-  ])('should reject a $description sid claim', async ({ payload }) => {
-    const token = await makeToken(payload);
+  it('should reject a token with an invalid type', async () => {
+    const token = await makeToken({ sid: 'session-id' }, { type: 'at+jwt' });
 
-    await expect(verifier.verify({ token, audience: AUDIENCE })).rejects.toBeInstanceOf(
-      InvalidAccessTokenError
-    );
+    await expect(
+      verifier.verify({ token, audience: AUDIENCE, expectedTyp: 'JWT' })
+    ).rejects.toMatchObject({
+      failure: 'invalid',
+    });
   });
 
-  it('should reject an access token with an invalid type', async () => {
-    const token = await makeToken({ sid: 'session-id' }, { type: 'JWT' });
-
-    await expect(verifier.verify({ token, audience: AUDIENCE })).rejects.toBeInstanceOf(
-      InvalidAccessTokenError
-    );
-  });
-
-  it('should reject an access token with an unexpected algorithm', async () => {
+  it('should reject a token with an unexpected algorithm', async () => {
     const issuedAt = Math.floor(Date.now() / 1000);
     const token = await new SignJWT({ sid: 'session-id' })
-      .setProtectedHeader({ alg: 'HS256', typ: 'at+jwt', kid: KEY_ID })
+      .setProtectedHeader({ alg: 'HS256', typ: 'JWT', kid: KEY_ID })
       .setIssuer(ISSUER)
       .setSubject('user-id')
       .setAudience(AUDIENCE)
@@ -155,89 +144,100 @@ describe('JoseTokenVerifierService', () => {
       .setExpirationTime(issuedAt + 600)
       .sign(new TextEncoder().encode('a-secure-test-secret-with-32-bytes'));
 
-    await expect(verifier.verify({ token, audience: AUDIENCE })).rejects.toBeInstanceOf(
-      InvalidAccessTokenError
-    );
+    await expect(
+      verifier.verify({ token, audience: AUDIENCE, expectedTyp: 'JWT' })
+    ).rejects.toMatchObject({
+      failure: 'invalid',
+    });
   });
 
   it.each([
     { description: 'subject', options: { subject: null } },
     { description: 'issued-at', options: { issuedAt: null } },
     { description: 'expiration', options: { expiresAt: null } },
-  ])('should reject an access token without its $description claim', async ({ options }) => {
+  ])('should reject a token without its $description claim', async ({ options }) => {
     const token = await makeToken({ sid: 'session-id' }, options);
 
-    await expect(verifier.verify({ token, audience: AUDIENCE })).rejects.toBeInstanceOf(
-      InvalidAccessTokenError
-    );
+    await expect(
+      verifier.verify({ token, audience: AUDIENCE, expectedTyp: 'JWT' })
+    ).rejects.toMatchObject({
+      failure: 'invalid',
+    });
   });
 
-  it('should map an expired token to AccessTokenExpiredError', async () => {
+  it('should identify an expired token', async () => {
     const token = await makeToken(
       { sid: 'session-id' },
       { expiresAt: Math.floor(Date.now() / 1000) - 1 }
     );
 
-    await expect(verifier.verify({ token, audience: AUDIENCE })).rejects.toMatchObject({
-      code: 'access_token_expired',
-      message: 'Access token expired',
-      name: AccessTokenExpiredError.name,
+    await expect(
+      verifier.verify({ token, audience: AUDIENCE, expectedTyp: 'JWT' })
+    ).rejects.toMatchObject({
+      failure: 'expired',
+      name: TokenVerificationError.name,
     });
   });
 
-  it('should map an invalid issuer to an access-token-specific error', async () => {
+  it('should identify an invalid issuer', async () => {
     const token = await makeToken({ sid: 'session-id' }, { issuer: 'https://other.example.com' });
 
-    await expect(verifier.verify({ token, audience: AUDIENCE })).rejects.toMatchObject({
-      code: 'invalid_access_token_issuer',
-      message: 'Invalid access token issuer',
-      name: InvalidAccessTokenIssuerError.name,
+    await expect(
+      verifier.verify({ token, audience: AUDIENCE, expectedTyp: 'JWT' })
+    ).rejects.toMatchObject({
+      failure: 'invalid_issuer',
+      name: TokenVerificationError.name,
     });
   });
 
-  it('should map an invalid audience to an access-token-specific error', async () => {
+  it('should identify an invalid audience', async () => {
     const token = await makeToken({ sid: 'session-id' });
 
-    await expect(verifier.verify({ token, audience: 'other-service' })).rejects.toMatchObject({
-      code: 'invalid_access_token_audience',
-      message: 'Invalid access token audience',
-      name: InvalidAccessTokenAudienceError.name,
+    await expect(
+      verifier.verify({ token, audience: 'other-service', expectedTyp: 'JWT' })
+    ).rejects.toMatchObject({
+      failure: 'invalid_audience',
+      name: TokenVerificationError.name,
     });
   });
 
-  it('should reject an access token with an unknown key id', async () => {
+  it('should reject a token with an unknown key id', async () => {
     const token = await makeToken({ sid: 'session-id' }, { keyId: 'unknown-key-id' });
 
-    await expect(verifier.verify({ token, audience: AUDIENCE })).rejects.toMatchObject({
-      code: 'invalid_access_token_key_id',
-      message: 'Invalid access token key id',
-      name: InvalidAccessTokenKeyIdError.name,
+    await expect(
+      verifier.verify({ token, audience: AUDIENCE, expectedTyp: 'JWT' })
+    ).rejects.toMatchObject({
+      failure: 'invalid_key_id',
+      name: TokenVerificationError.name,
     });
   });
 
-  it('should reject an access token without a key id', async () => {
+  it('should reject a token without a key id', async () => {
     const token = await makeToken({ sid: 'session-id' }, { omitKeyId: true });
 
-    await expect(verifier.verify({ token, audience: AUDIENCE })).rejects.toBeInstanceOf(
-      InvalidAccessTokenKeyIdError
-    );
+    await expect(
+      verifier.verify({ token, audience: AUDIENCE, expectedTyp: 'JWT' })
+    ).rejects.toMatchObject({
+      failure: 'invalid_key_id',
+    });
   });
 
-  it('should reject an access token with an invalid signature', async () => {
+  it('should reject a token with an invalid signature', async () => {
     const token = await makeToken({ sid: 'session-id' }, { signingKey: anotherPrivateKey });
 
-    await expect(verifier.verify({ token, audience: AUDIENCE })).rejects.toBeInstanceOf(
-      InvalidAccessTokenError
-    );
+    await expect(
+      verifier.verify({ token, audience: AUDIENCE, expectedTyp: 'JWT' })
+    ).rejects.toMatchObject({
+      failure: 'invalid',
+    });
   });
 
-  it('should reject a malformed access token', async () => {
-    await expect(verifier.verify({ token: 'not-a-jwt', audience: AUDIENCE })).rejects.toMatchObject(
-      {
-        code: 'invalid_access_token',
-        message: 'Invalid access token',
-        name: InvalidAccessTokenError.name,
-      }
-    );
+  it('should reject a malformed token', async () => {
+    await expect(
+      verifier.verify({ token: 'not-a-jwt', audience: AUDIENCE, expectedTyp: 'JWT' })
+    ).rejects.toMatchObject({
+      failure: 'invalid',
+      name: TokenVerificationError.name,
+    });
   });
 });

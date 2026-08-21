@@ -42,6 +42,14 @@ export class KnexAuthorizationRequestsRepository implements IAuthorizationReques
     });
   }
 
+  async findById(id: string): Promise<AuthorizationRequest | null> {
+    const row = await this.db<AuthorizationRequestRow>('oauth_authorization_requests')
+      .where({ id })
+      .first();
+
+    return row ? this.toDomain(row) : null;
+  }
+
   async findPendingById(id: string, now: Date): Promise<AuthorizationRequest | null> {
     const row = await this.db<AuthorizationRequestRow>('oauth_authorization_requests')
       .where({ id })

@@ -1,9 +1,9 @@
-import { JoseTokenSignerService } from '@/adapters/accessTokens/JoseTokenSignerService.js';
-import { JoseTokenVerifierService } from '@/adapters/accessTokens/JoseTokenVerifierService.js';
-import { PemTokenKeyStoreService } from '@/adapters/accessTokens/PemTokenKeyStoreService.js';
+import { JoseTokenSignerService } from '@/adapters/jwt/jose/JoseTokenSignerService.js';
+import { JoseTokenVerifierService } from '@/adapters/jwt/jose/JoseTokenVerifierService.js';
+import { PemTokenKeyStoreService } from '@/adapters/jwt/PemTokenKeyStoreService.js';
 import { accessTokenConfig } from '@/config/accessTokenConfig.js';
-import type { ITokenSignerService } from '@/services/accessTokens/ITokenSignerService.js';
-import type { ITokenVerifierService } from '@/services/accessTokens/ITokenVerifierService.js';
+import type { ITokenSignerService } from '@/services/jwt/ITokenSignerService.js';
+import type { ITokenVerifierService } from '@/services/jwt/ITokenVerifierService.js';
 
 const tokenKeyStore = new PemTokenKeyStoreService({
   keyId: accessTokenConfig.signingKey.id,

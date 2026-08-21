@@ -4,8 +4,8 @@ import type {
   ITokenSignerService,
   SignTokenInput,
   SignTokenOutput,
-} from '@/services/accessTokens/ITokenSignerService.js';
-import type { ITokenKeyStoreService } from '@/services/accessTokens/ITokenKeyStoreService.js';
+} from '@/services/jwt/ITokenSignerService.js';
+import type { ITokenKeyStoreService } from '@/services/jwt/ITokenKeyStoreService.js';
 
 interface JoseTokenSignerConfig {
   issuer: string;
@@ -23,10 +23,10 @@ export class JoseTokenSignerService implements ITokenSignerService {
 
     const issuedAtInSeconds = Math.floor(Date.now() / 1000);
     const expiresAtInSeconds = issuedAtInSeconds + input.expiresInSeconds;
-    const token = await new SignJWT({ sid: input.sessionId })
+    const token = await new SignJWT(input.claims)
       .setProtectedHeader({
         alg: this.config.algorithm,
-        typ: 'at+jwt',
+        typ: input.typ,
         kid: signingKey.id,
       })
       .setIssuer(this.config.issuer)

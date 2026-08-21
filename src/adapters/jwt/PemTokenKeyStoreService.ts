@@ -4,7 +4,7 @@ import type {
   ITokenKeyStoreService,
   TokenSigningKey,
   TokenVerificationKey,
-} from '@/services/accessTokens/ITokenKeyStoreService.js';
+} from '@/services/jwt/ITokenKeyStoreService.js';
 
 interface PemTokenKeyStoreConfig {
   keyId: string;

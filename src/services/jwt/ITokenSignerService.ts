@@ -1,8 +1,9 @@
 export interface SignTokenInput {
   subject: string;
-  sessionId: string;
   audience: string | string[];
   expiresInSeconds: number;
+  typ: string;
+  claims?: Record<string, unknown>;
 }
 export interface SignTokenOutput {
   token: string;

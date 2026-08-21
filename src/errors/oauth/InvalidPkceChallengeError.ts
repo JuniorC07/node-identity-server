@@ -1,10 +1,10 @@
-import { AppError } from '@/errors/AppError.js';
+import { OAuthError } from '@/errors/oauth/OAuthError.js';
 
-export class InvalidPkceChallengeError extends AppError {
+export class InvalidPkceChallengeError extends OAuthError {
   constructor() {
     super({
       statusCode: 400,
-      code: 'invalid_pkce_challenge',
+      code: 'invalid_request',
       message: 'The PKCE code challenge is invalid',
     });
   }

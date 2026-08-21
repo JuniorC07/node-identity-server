@@ -1,8 +1,16 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { AccessTokenExpiredError } from '@/errors/accessTokens/AccessTokenExpiredError.js';
+import { InvalidAccessTokenAudienceError } from '@/errors/accessTokens/InvalidAccessTokenAudienceError.js';
 import { InvalidAccessTokenError } from '@/errors/accessTokens/InvalidAccessTokenError.js';
-import type { AccessTokenClaims } from '@/services/accessTokens/AccessTokenClaims.js';
-import type { ITokenVerifierService } from '@/services/accessTokens/ITokenVerifierService.js';
+import { InvalidAccessTokenIssuerError } from '@/errors/accessTokens/InvalidAccessTokenIssuerError.js';
+import { InvalidAccessTokenKeyIdError } from '@/errors/accessTokens/InvalidAccessTokenKeyIdError.js';
+import {
+  TokenVerificationError,
+  type TokenVerificationFailure,
+} from '@/errors/jwt/TokenVerificationError.js';
+import type { AccessTokenClaims } from '@/services/jwt/AccessTokenClaims.js';
+import type { ITokenVerifierService } from '@/services/jwt/ITokenVerifierService.js';
 import { VerifyAccessTokenUseCase } from '@/useCases/accessTokens/VerifyAccessTokenUseCase.js';
 
 describe('VerifyAccessTokenUseCase', () => {
@@ -15,7 +23,14 @@ describe('VerifyAccessTokenUseCase', () => {
       issuedAt: new Date('2026-08-04T12:00:00.000Z'),
       expiresAt: new Date('2026-08-04T12:10:00.000Z'),
     };
-    const verify = vi.fn<ITokenVerifierService['verify']>().mockResolvedValue(claims);
+    const verify = vi.fn<ITokenVerifierService['verify']>().mockResolvedValue({
+      issuer: claims.issuer,
+      subject: claims.subject,
+      audience: claims.audience,
+      issuedAt: claims.issuedAt,
+      expiresAt: claims.expiresAt,
+      claims: { sid: claims.sessionId },
+    });
     const tokenVerifier: ITokenVerifierService = { verify };
     const useCase = new VerifyAccessTokenUseCase(tokenVerifier);
 
@@ -28,14 +43,22 @@ describe('VerifyAccessTokenUseCase', () => {
     expect(verify).toHaveBeenCalledWith({
       token: 'signed-access-token',
       audience: 'example-service',
+      expectedTyp: 'at+jwt',
     });
-    expect(output).toBe(claims);
+    expect(output).toEqual(claims);
   });
 
-  it('should propagate access token verification failures', async () => {
-    const verificationError = new InvalidAccessTokenError();
+  it.each([
+    { failure: 'expired', ErrorType: AccessTokenExpiredError },
+    { failure: 'invalid_audience', ErrorType: InvalidAccessTokenAudienceError },
+    { failure: 'invalid_issuer', ErrorType: InvalidAccessTokenIssuerError },
+    { failure: 'invalid_key_id', ErrorType: InvalidAccessTokenKeyIdError },
+    { failure: 'invalid', ErrorType: InvalidAccessTokenError },
+  ] as const)('should map $failure verification failures', async ({ failure, ErrorType }) => {
     const tokenVerifier: ITokenVerifierService = {
-      verify: vi.fn<ITokenVerifierService['verify']>().mockRejectedValue(verificationError),
+      verify: vi
+        .fn<ITokenVerifierService['verify']>()
+        .mockRejectedValue(new TokenVerificationError(failure as TokenVerificationFailure)),
     };
     const useCase = new VerifyAccessTokenUseCase(tokenVerifier);
 
@@ -44,6 +67,24 @@ describe('VerifyAccessTokenUseCase', () => {
         accessToken: 'invalid-access-token',
         audience: 'example-service',
       })
-    ).rejects.toBe(verificationError);
+    ).rejects.toBeInstanceOf(ErrorType);
+  });
+
+  it.each([undefined, '', 123])('should reject an invalid sid claim', async (sid) => {
+    const tokenVerifier: ITokenVerifierService = {
+      verify: vi.fn<ITokenVerifierService['verify']>().mockResolvedValue({
+        issuer: 'https://identity.example.com',
+        subject: 'user-id',
+        audience: ['example-service'],
+        issuedAt: new Date('2026-08-04T12:00:00.000Z'),
+        expiresAt: new Date('2026-08-04T12:10:00.000Z'),
+        claims: { sid },
+      }),
+    };
+    const useCase = new VerifyAccessTokenUseCase(tokenVerifier);
+
+    await expect(
+      useCase.execute({ accessToken: 'signed-access-token', audience: 'example-service' })
+    ).rejects.toBeInstanceOf(InvalidAccessTokenError);
   });
 });

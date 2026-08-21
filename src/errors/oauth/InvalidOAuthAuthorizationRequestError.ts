@@ -1,10 +1,10 @@
-import { AppError } from '@/errors/AppError.js';
+import { OAuthError } from '@/errors/oauth/OAuthError.js';
 
-export class InvalidOAuthAuthorizationRequestError extends AppError {
+export class InvalidOAuthAuthorizationRequestError extends OAuthError {
   constructor() {
     super({
       statusCode: 400,
-      code: 'invalid_oauth_authorization_request',
+      code: 'invalid_request',
       message: 'The OAuth authorization request is invalid, expired, or already processed',
     });
   }

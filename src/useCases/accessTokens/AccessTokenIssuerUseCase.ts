@@ -1,8 +1,11 @@
-import type { ITokenSignerService } from '@/services/accessTokens/ITokenSignerService.js';
+import type { ITokenSignerService } from '@/services/jwt/ITokenSignerService.js';
+import { TOKEN_TYPES } from '@/services/jwt/TokenTypes.js';
 
 export interface AccessTokenIssuerInput {
   subject: string;
   sessionId: string;
+  clientId: string;
+  scopes: string[];
   audience: string | string[];
 }
 
@@ -25,7 +28,12 @@ export class AccessTokenIssuerUseCase {
       subject: input.subject,
       audience: input.audience,
       expiresInSeconds: this.accessTokenLifetimeInSeconds,
-      sessionId: input.sessionId,
+      typ: TOKEN_TYPES.accessToken,
+      claims: {
+        sid: input.sessionId,
+        client_id: input.clientId,
+        scope: input.scopes.join(' '),
+      },
     });
 
     return {

@@ -1,7 +1,7 @@
 import { exportPKCS8, exportSPKI, generateKeyPair } from 'jose';
 import { beforeAll, describe, expect, it } from 'vitest';
 
-import { PemTokenKeyStoreService } from '@/adapters/accessTokens/PemTokenKeyStoreService.js';
+import { PemTokenKeyStoreService } from '@/adapters/jwt/PemTokenKeyStoreService.js';
 
 const KEY_ID = 'test-key-id';
 

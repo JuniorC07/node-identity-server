@@ -1,5 +1,8 @@
-const expirationFromEnv = process.env.EXPIRATION_IN_MILLISECONDS;
+import { getPositiveIntegerEnv } from '@/utils/environment/environmentVariables.js';
 
-export const sessionExpirationInMilliSeconds = expirationFromEnv
-  ? Number(expirationFromEnv)
-  : 60 * 60 * 24 * 15 * 1000; //default is 15 days
+const fifteenDaysInMilliseconds = 60 * 60 * 24 * 15 * 1000;
+
+export const sessionExpirationInMilliSeconds = getPositiveIntegerEnv(
+  'EXPIRATION_IN_MILLISECONDS',
+  fifteenDaysInMilliseconds
+);

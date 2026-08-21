@@ -12,9 +12,15 @@ import type { IAuthorizationRequestsRepository } from '@/repositories/IAuthoriza
 import type { IOAuthClientsRepository } from '@/repositories/oauth/IOAuthClientsRepository.js';
 import type { IPkceService } from '@/services/IPkceService.js';
 import type { ISessionTokenService } from '@/services/ISessionTokenService.js';
+import type { IUnitOfWork } from '@/services/database/IUnitOfWork.js';
 import type { ResolveRegisteredOAuthScopesUseCase } from '@/useCases/oauth/_internal/ResolveRegisteredOAuthScopesUseCase.js';
 import { ValidateUserScopesUseCase } from '@/useCases/oauth/_internal/ValidateUserScopesUseCase.js';
 import { EvaluateOAuthConsentUseCase } from '@/useCases/oauth/_internal/EvaluateOAuthConsentUseCase.js';
+import type {
+  CreateOAuthAuthorizationCodeOutput,
+  CreateOAuthAuthorizationCodeRepositories,
+  CreateOAuthAuthorizationCodeUseCaseFactory,
+} from '@/useCases/oauth/_internal/CreateOAuthAuthorizationCodeUseCase.js';
 export interface AuthorizationStartedOutput {
   authenticationRequired: false;
   consentRequired: boolean;
@@ -27,6 +33,7 @@ export interface AuthorizationStartedOutput {
     name: string;
   };
   requestedScopes: string[];
+  authorizationCode: CreateOAuthAuthorizationCodeOutput | null;
 }
 
 export interface AuthenticationRequiredOutput {
@@ -60,6 +67,8 @@ export class StartAuthorizationUseCase {
     private readonly resolveRegisteredOAuthScopesUseCase: ResolveRegisteredOAuthScopesUseCase,
     private readonly validateUserScopesUseCase: ValidateUserScopesUseCase,
     private readonly evaluateOAuthConsentUseCase: EvaluateOAuthConsentUseCase,
+    private readonly authorizationCodeIssuanceUnitOfWork: IUnitOfWork<CreateOAuthAuthorizationCodeRepositories>,
+    private readonly createOAuthAuthorizationCodeUseCaseFactory: CreateOAuthAuthorizationCodeUseCaseFactory,
     private readonly requestLifetimeInSeconds: number
   ) {}
   async execute(input: StartAuthorizationInput): Promise<StartAuthorizationOutput> {
@@ -141,7 +150,9 @@ export class StartAuthorizationUseCase {
       consumedAt: null,
     });
 
-    await this.authorizationRequestsRepository.create(authorizationRequest);
+    const authorizationCode = consentRequired
+      ? await this.createPendingAuthorizationRequest(authorizationRequest)
+      : await this.createAuthorizationCode(authorizationRequest);
 
     return {
       authorizationRequestId: authorizationRequest.id,
@@ -155,6 +166,29 @@ export class StartAuthorizationUseCase {
         name: client.name,
       },
       requestedScopes,
+      authorizationCode,
     };
+  }
+
+  private async createPendingAuthorizationRequest(
+    authorizationRequest: AuthorizationRequest
+  ): Promise<null> {
+    await this.authorizationRequestsRepository.create(authorizationRequest);
+    return null;
+  }
+
+  private createAuthorizationCode(
+    authorizationRequest: AuthorizationRequest
+  ): Promise<CreateOAuthAuthorizationCodeOutput> {
+    return this.authorizationCodeIssuanceUnitOfWork.execute(async (repositories) => {
+      await repositories.authorizationRequests.create(authorizationRequest);
+
+      const createOAuthAuthorizationCodeUseCase =
+        this.createOAuthAuthorizationCodeUseCaseFactory(repositories);
+
+      return createOAuthAuthorizationCodeUseCase.execute({
+        authorizationRequestId: authorizationRequest.id,
+      });
+    });
   }
 }

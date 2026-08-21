@@ -15,6 +15,15 @@ export interface CreateOAuthAuthorizationCodeOutput {
   rawCode: string;
 }
 
+export interface CreateOAuthAuthorizationCodeRepositories {
+  authorizationRequests: IAuthorizationRequestsRepository;
+  authorizationCodes: IAuthorizationCodesRepository;
+}
+
+export type CreateOAuthAuthorizationCodeUseCaseFactory = (
+  repositories: CreateOAuthAuthorizationCodeRepositories
+) => CreateOAuthAuthorizationCodeUseCase;
+
 export class CreateOAuthAuthorizationCodeUseCase {
   constructor(
     private readonly authorizationRequestsRepository: IAuthorizationRequestsRepository,
@@ -48,6 +57,15 @@ export class CreateOAuthAuthorizationCodeUseCase {
       createdAt: now,
       expiresAt: new Date(now.getTime() + this.authorizationCodeLifetimeInSeconds * 1000),
     });
+
+    const consumed = await this.authorizationRequestsRepository.consume(
+      authorizationRequest.id,
+      now
+    );
+
+    if (!consumed) {
+      throw new InvalidOAuthAuthorizationRequestError();
+    }
 
     await this.authorizationCodesRepository.create(authorizationCode);
 

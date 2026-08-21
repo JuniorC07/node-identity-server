@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import type { ITokenSignerService } from '@/services/accessTokens/ITokenSignerService.js';
+import type { ITokenSignerService } from '@/services/jwt/ITokenSignerService.js';
 import { AccessTokenIssuerUseCase } from '@/useCases/accessTokens/AccessTokenIssuerUseCase.js';
 
 const ACCESS_TOKEN_LIFETIME_IN_SECONDS = 600;
@@ -20,15 +20,22 @@ describe('AccessTokenIssuerUseCase', () => {
     const output = await useCase.execute({
       subject: 'user-id',
       sessionId: 'session-id',
+      clientId: 'client-id',
+      scopes: ['openid', 'profile'],
       audience: ['service-a', 'service-b'],
     });
 
     expect(sign).toHaveBeenCalledOnce();
     expect(sign).toHaveBeenCalledWith({
       subject: 'user-id',
-      sessionId: 'session-id',
       audience: ['service-a', 'service-b'],
       expiresInSeconds: ACCESS_TOKEN_LIFETIME_IN_SECONDS,
+      typ: 'at+jwt',
+      claims: {
+        sid: 'session-id',
+        client_id: 'client-id',
+        scope: 'openid profile',
+      },
     });
     expect(output).toEqual({
       accessToken: 'signed-access-token',
@@ -50,6 +57,8 @@ describe('AccessTokenIssuerUseCase', () => {
       useCase.execute({
         subject: 'user-id',
         sessionId: 'session-id',
+        clientId: 'client-id',
+        scopes: ['openid'],
         audience: 'service-a',
       })
     ).rejects.toBe(signingError);

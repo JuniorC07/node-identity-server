@@ -6,7 +6,6 @@ import type {
   StartAuthorizationRequestInput,
   StartAuthorizationUseCase,
 } from '@/useCases/oauth/StartAuthorizationUseCase.js';
-import type { CreateOAuthAuthorizationCodeUseCase } from '@/useCases/oauth/_internal/CreateOAuthAuthorizationCodeUseCase.js';
 import type { AuthorizeRequestValidator } from '@/validators/oauth/StartAuthorization/StartAuthorizationValidator.js';
 
 const validInput: StartAuthorizationRequestInput = {
@@ -22,22 +21,20 @@ const validInput: StartAuthorizationRequestInput = {
 
 function makeSut() {
   const execute = vi.fn<StartAuthorizationUseCase['execute']>();
-  const createAuthorizationCode = vi.fn<CreateOAuthAuthorizationCodeUseCase['execute']>();
   const validate = vi.fn<AuthorizeRequestValidator['validate']>().mockReturnValue(validInput);
   const controller = new StartAuthorizationController(
     { execute } as unknown as StartAuthorizationUseCase,
-    { execute: createAuthorizationCode } as unknown as CreateOAuthAuthorizationCodeUseCase,
     { validate } as AuthorizeRequestValidator,
-    '/login',
-    '/consent'
+    'http://localhost:3001/login',
+    'http://localhost:3001/consent'
   );
 
-  return { controller, createAuthorizationCode, execute, validate };
+  return { controller, execute, validate };
 }
 
 describe('StartAuthorizationController', () => {
   it('should redirect an unauthenticated user to login after validating the request', async () => {
-    const { controller, createAuthorizationCode, execute, validate } = makeSut();
+    const { controller, execute, validate } = makeSut();
     execute.mockResolvedValue({ authenticationRequired: true });
     const req = {
       query: { response_type: 'code' },
@@ -56,13 +53,12 @@ describe('StartAuthorizationController', () => {
     });
     expect(redirect).toHaveBeenCalledWith(
       302,
-      '/login?return_to=%2Foauth%2Fauthorize%3Fresponse_type%3Dcode%26client_id%3Dclient-id'
+      'http://localhost:3001/login?return_to=%2Foauth%2Fauthorize%3Fresponse_type%3Dcode%26client_id%3Dclient-id'
     );
-    expect(createAuthorizationCode).not.toHaveBeenCalled();
   });
 
   it('should redirect to the consent page when consent is required', async () => {
-    const { controller, createAuthorizationCode, execute } = makeSut();
+    const { controller, execute } = makeSut();
     execute.mockResolvedValue({
       authenticationRequired: false,
       consentRequired: true,
@@ -72,6 +68,7 @@ describe('StartAuthorizationController', () => {
       state: 'state-with-enough-entropy',
       client: { clientId: 'client-id', name: 'Example client' },
       requestedScopes: ['openid', 'profile'],
+      authorizationCode: null,
     });
     const req = {
       query: {},
@@ -88,13 +85,12 @@ describe('StartAuthorizationController', () => {
 
     expect(redirect).toHaveBeenCalledWith(
       302,
-      '/consent?authorization_request=authorization-request-token'
+      'http://localhost:3001/consent?authorization_request=authorization-request-token'
     );
-    expect(createAuthorizationCode).not.toHaveBeenCalled();
   });
 
-  it('should create an authorization code and redirect to the client callback', async () => {
-    const { controller, createAuthorizationCode, execute } = makeSut();
+  it('should redirect to the client callback with the issued authorization code', async () => {
+    const { controller, execute } = makeSut();
     execute.mockResolvedValue({
       authenticationRequired: false,
       consentRequired: false,
@@ -104,8 +100,8 @@ describe('StartAuthorizationController', () => {
       state: 'state-with-enough-entropy',
       client: { clientId: 'client-id', name: 'Example client' },
       requestedScopes: ['openid', 'profile'],
+      authorizationCode: { rawCode: 'raw-code', codeHash: 'code-hash' },
     });
-    createAuthorizationCode.mockResolvedValue({ rawCode: 'raw-code', codeHash: 'code-hash' });
     const req = {
       query: {},
       originalUrl: '/oauth/authorize',
@@ -125,12 +121,41 @@ describe('StartAuthorizationController', () => {
       userId: 'user-id',
       sessionId: 'session-id',
     });
-    expect(createAuthorizationCode).toHaveBeenCalledWith({
-      authorizationRequestId: 'authorization-request-id',
-    });
     expect(redirect).toHaveBeenCalledWith(
       302,
       'https://client.example.com/callback?code=raw-code&state=state-with-enough-entropy'
+    );
+  });
+
+  it('should preserve existing query parameters and encode OAuth response parameters', async () => {
+    const { controller, execute } = makeSut();
+    execute.mockResolvedValue({
+      authenticationRequired: false,
+      consentRequired: false,
+      authorizationRequestToken: 'authorization-request-token',
+      authorizationRequestId: 'authorization-request-id',
+      redirectUri: 'https://client.example.com/callback?tenant=example',
+      state: 'state&return=/home',
+      client: { clientId: 'client-id', name: 'Example client' },
+      requestedScopes: ['openid', 'profile'],
+      authorizationCode: { rawCode: 'raw+code/value', codeHash: 'code-hash' },
+    });
+    const req = {
+      query: {},
+      originalUrl: '/oauth/authorize',
+      auth: {
+        userId: 'user-id',
+        sessionId: 'session-id',
+        identityId: 'identity-id',
+      },
+    } as Request;
+    const redirect = vi.fn();
+
+    await controller.handle(req, { redirect } as unknown as Response);
+
+    expect(redirect).toHaveBeenCalledWith(
+      302,
+      'https://client.example.com/callback?tenant=example&code=raw%2Bcode%2Fvalue&state=state%26return%3D%2Fhome'
     );
   });
 });

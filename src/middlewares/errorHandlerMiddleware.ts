@@ -1,6 +1,7 @@
 import type { ErrorRequestHandler } from 'express';
 
 import { AppError } from '@/errors/AppError.js';
+import { OAuthError } from '@/errors/oauth/OAuthError.js';
 import type { ILoggerService } from '@/services/ILoggerService.js';
 
 export class ErrorHandlerMiddleware {
@@ -12,6 +13,23 @@ export class ErrorHandlerMiddleware {
       method: req.method,
       path: req.path,
     };
+
+    if (error instanceof OAuthError) {
+      res.locals.errorCode = error.code;
+      res.setHeader('Cache-Control', 'no-store');
+      res.setHeader('Pragma', 'no-cache');
+
+      if (error.wwwAuthenticate) {
+        res.setHeader('WWW-Authenticate', error.wwwAuthenticate);
+      }
+
+      res.status(error.statusCode).json({
+        error: error.code,
+        error_description: error.message,
+      });
+
+      return;
+    }
 
     if (error instanceof AppError) {
       res.locals.errorCode = error.code;

@@ -1,13 +1,13 @@
 import type { Request, Response } from 'express';
 
 import type { StartAuthorizationUseCase } from '@/useCases/oauth/StartAuthorizationUseCase.js';
-import type { CreateOAuthAuthorizationCodeUseCase } from '@/useCases/oauth/_internal/CreateOAuthAuthorizationCodeUseCase.js';
 import type { AuthorizeRequestValidator } from '@/validators/oauth/StartAuthorization/StartAuthorizationValidator.js';
+import { InvalidOAuthAuthorizationRequestError } from '@/errors/oauth/InvalidOAuthAuthorizationRequestError.js';
+import { buildUri } from '@/utils/buildUri.js';
 
 export class StartAuthorizationController {
   constructor(
     private readonly startAuthorizationUseCase: StartAuthorizationUseCase,
-    private readonly createOAuthAuthorizationCodeUseCase: CreateOAuthAuthorizationCodeUseCase,
     private readonly validator: AuthorizeRequestValidator,
     private readonly loginPageUrl: string,
     private readonly consentPageUrl: string
@@ -22,28 +22,28 @@ export class StartAuthorizationController {
     });
 
     if (output.authenticationRequired) {
-      const loginQuery = new URLSearchParams({ return_to: req.originalUrl });
-      const querySeparator = this.loginPageUrl.includes('?') ? '&' : '?';
-      res.redirect(302, `${this.loginPageUrl}${querySeparator}${loginQuery.toString()}`);
+      const loginUri = buildUri(this.loginPageUrl, { return_to: req.originalUrl });
+      res.redirect(302, loginUri);
       return;
     }
 
     if (output.consentRequired) {
-      const consentQuery = new URLSearchParams({
+      const consentUri = buildUri(this.consentPageUrl, {
         authorization_request: output.authorizationRequestToken,
       });
-      const querySeparator = this.consentPageUrl.includes('?') ? '&' : '?';
-      res.redirect(302, `${this.consentPageUrl}${querySeparator}${consentQuery.toString()}`);
+      res.redirect(302, consentUri);
       return;
     }
 
-    const authorizationCode = await this.createOAuthAuthorizationCodeUseCase.execute({
-      authorizationRequestId: output.authorizationRequestId,
+    if (!output.authorizationCode) {
+      throw new InvalidOAuthAuthorizationRequestError();
+    }
+
+    const redirectUri = buildUri(output.redirectUri, {
+      code: output.authorizationCode.rawCode,
+      state: output.state,
     });
 
-    res.redirect( 
-      302,
-      `${output.redirectUri}?code=${authorizationCode.rawCode}&state=${output.state}`
-    );
+    res.redirect(302, redirectUri);
   };
 }
