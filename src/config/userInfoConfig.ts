@@ -1,5 +1,5 @@
-import { accessTokenConfig } from '@/config/accessTokenConfig.js';
+import { oidcConfig } from '@/config/oidcConfig.js';
 
 export const userInfoConfig = {
-  audience: new URL('/oauth/userinfo', accessTokenConfig.issuer).toString(),
+  audience: oidcConfig.endpoints.userInfo,
 };

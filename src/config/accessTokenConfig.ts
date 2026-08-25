@@ -3,10 +3,11 @@ import {
   getRequiredBase64Env,
   getRequiredEnv,
 } from '@/utils/environment/environmentVariables.js';
+import { oidcConfig } from '@/config/oidcConfig.js';
 
 export const accessTokenConfig = {
-  algorithm: 'RS256' as const,
-  issuer: getRequiredEnv('ACCESS_TOKEN_ISSUER'),
+  algorithm: oidcConfig.signingAlgorithm,
+  issuer: oidcConfig.issuer,
   lifetimeInSeconds: getPositiveIntegerEnv('ACCESS_TOKEN_LIFETIME_SECONDS', 600),
   signingKey: {
     id: getRequiredEnv('ACCESS_TOKEN_KEY_ID'),

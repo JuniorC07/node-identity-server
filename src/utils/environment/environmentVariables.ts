@@ -41,6 +41,17 @@ export function getRequiredBase64Env(name: string): string {
   }
 }
 
+export function getRequiredAbsoluteUrlEnv(name: string): string {
+  const value = getRequiredEnv(name);
+
+  try {
+    new URL(value);
+    return value;
+  } catch (error) {
+    throw new Error(`${name} must be an absolute URL`, { cause: error });
+  }
+}
+
 export function getAbsoluteUrlEnv(name: string, defaultValue: string): string {
   const value = getEnvOrDefault(name, defaultValue);
 
@@ -50,4 +61,3 @@ export function getAbsoluteUrlEnv(name: string, defaultValue: string): string {
     throw new Error(`${name} must be an absolute URL`, { cause: error });
   }
 }
-
