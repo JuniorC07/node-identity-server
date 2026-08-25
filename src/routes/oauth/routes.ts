@@ -7,6 +7,10 @@ import { makeTokenController } from '@/main/factories/controllers/oauth/makeToke
 import { makeResolveSessionMiddleware } from '@/main/factories/middlewares/makeResolveSessionMiddleware.js';
 
 import { makeAuthenticateMiddleware } from '@/main/factories/middlewares/makeAuthenticateMiddleware.js';
+import { makeAuthenticateAccessTokenMiddleware } from '@/main/factories/middlewares/makeAuthenticateAccessTokenMiddleware.js';
+import { makeAuthorizeAccessTokenMiddleware } from '@/main/factories/middlewares/makeAuthorizeAccessTokenMiddleware.js';
+import { makeGetUserInfoController } from '@/main/factories/controllers/users/makeGetUserInfoController.js';
+import { userInfoConfig } from '@/config/userInfoConfig.js';
 
 const authenticateMiddleware = makeAuthenticateMiddleware();
 
@@ -17,6 +21,11 @@ const startAuthorizationController = makeStartAuthorizationController();
 const getPendingConsentDetailsController = makeGetPendingConsentDetailsController();
 const decideOAuthConsentController = makeDecideOAuthConsentController();
 const tokenController = makeTokenController();
+const authenticateAccessTokenMiddleware = makeAuthenticateAccessTokenMiddleware(
+  userInfoConfig.audience
+);
+const authorizeAccessTokenMiddleware = makeAuthorizeAccessTokenMiddleware();
+const getUserInfoController = makeGetUserInfoController();
 
 oauthRoutes.get(
   '/authorize',
@@ -40,6 +49,13 @@ oauthRoutes.post(
   '/token',
   express.urlencoded({ extended: false, limit: '10kb' }),
   tokenController.handle
+);
+
+oauthRoutes.get(
+  '/userinfo',
+  authenticateAccessTokenMiddleware.handle(),
+  authorizeAccessTokenMiddleware.handle(['openid']),
+  getUserInfoController.handle
 );
 
 export { oauthRoutes };

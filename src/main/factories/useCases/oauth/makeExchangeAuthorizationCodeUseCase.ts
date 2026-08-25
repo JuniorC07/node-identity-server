@@ -10,6 +10,7 @@ import { makeEvaluateOAuthConsentUseCase } from '@/main/factories/useCases/oauth
 import { makeResolveRegisteredOAuthScopesUseCase } from '@/main/factories/useCases/oauth/_internal/makeResolveRegisteredOAuthScopesUseCase.js';
 import { makeValidateUserScopesUseCase } from '@/main/factories/useCases/oauth/_internal/makeValidateUserScopesUseCase.js';
 import { ExchangeAuthorizationCodeUseCase } from '@/useCases/oauth/ExchangeAuthorizationCodeUseCase.js';
+import { userInfoConfig } from '@/config/userInfoConfig.js';
 
 export function makeExchangeAuthorizationCodeUseCase(): ExchangeAuthorizationCodeUseCase {
   const authorizationCodesRepository = makeAuthorizationCodeRepository();
@@ -35,6 +36,7 @@ export function makeExchangeAuthorizationCodeUseCase(): ExchangeAuthorizationCod
     validateUserScopesUseCase,
     evaluateOAuthConsentUseCase,
     accessTokenIssuerUseCase,
-    idTokenIssuerUseCase
+    idTokenIssuerUseCase,
+    userInfoConfig.audience
   );
 }

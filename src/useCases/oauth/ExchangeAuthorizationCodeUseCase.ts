@@ -44,7 +44,8 @@ export class ExchangeAuthorizationCodeUseCase {
     private readonly validateUserScopesUseCase: ValidateUserScopesUseCase,
     private readonly evaluateOAuthConsentUseCase: EvaluateOAuthConsentUseCase,
     private readonly accessTokenIssuerUseCase: AccessTokenIssuerUseCase,
-    private readonly idTokenIssuerUseCase: IdTokenIssuerUseCase
+    private readonly idTokenIssuerUseCase: IdTokenIssuerUseCase,
+    private readonly userInfoAudience: string
   ) {}
 
   async execute(input: ExchangeAuthorizationCodeInput): Promise<ExchangeAuthorizationCodeOutput> {
@@ -112,13 +113,16 @@ export class ExchangeAuthorizationCodeUseCase {
       scopes,
     });
 
+    const scopeKeys = scopes.map((scope) => scope.key);
     const audience = [
       ...new Set(
-        scopes.filter((scope) => scope.isResource()).map((scope) => scope.resource.audience)
+        [
+          ...scopes.filter((scope) => scope.isResource()).map((scope) => scope.resource.audience),
+          ...(scopeKeys.includes('openid') ? [this.userInfoAudience] : []),
+        ]
       ),
     ];
 
-    const scopeKeys = scopes.map((scope) => scope.key);
     const accessToken = await this.accessTokenIssuerUseCase.execute({
       subject: authorizationRequest.userId,
       sessionId: authorizationRequest.sessionId,

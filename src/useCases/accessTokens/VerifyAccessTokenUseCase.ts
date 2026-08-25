@@ -26,14 +26,25 @@ export class VerifyAccessTokenUseCase {
         expectedTyp: TOKEN_TYPES.accessToken,
       });
       const sessionId = token.claims.sid;
+      const clientId = token.claims.client_id;
+      const scope = token.claims.scope;
 
-      if (typeof sessionId !== 'string' || sessionId.length === 0) {
+      if (
+        typeof sessionId !== 'string' ||
+        sessionId.length === 0 ||
+        typeof clientId !== 'string' ||
+        clientId.length === 0 ||
+        typeof scope !== 'string' ||
+        scope.length === 0
+      ) {
         throw new InvalidAccessTokenError();
       }
 
       return {
         issuer: token.issuer,
         subject: token.subject,
+        scopes: scope.split(' '),
+        clientId,
         sessionId,
         audience: token.audience,
         issuedAt: token.issuedAt,

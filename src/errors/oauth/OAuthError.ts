@@ -6,6 +6,7 @@ export type OAuthErrorCode =
   | 'invalid_grant'
   | 'invalid_request'
   | 'invalid_scope'
+  | 'insufficient_scope'
   | 'unsupported_grant_type'
   | 'unsupported_response_type';
 
@@ -22,4 +23,3 @@ export class OAuthError extends AppError {
     this.wwwAuthenticate = wwwAuthenticate ?? null;
   }
 }
-
