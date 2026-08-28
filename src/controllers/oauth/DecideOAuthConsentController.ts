@@ -25,6 +25,8 @@ export class DecideOAuthConsentController {
       sessionId: req.auth.sessionId,
     });
 
-    res.redirect(302, redirectUri);
+    res.status(200).json({
+      redirectUri,
+    });
   };
 }

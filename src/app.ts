@@ -2,10 +2,13 @@ import express from 'express';
 import { routes } from '@/routes/index.js';
 import { makeErrorHandlerMiddleware } from './main/factories/middlewares/makeErrorHandlerMiddleware.js';
 import { makeHttpLoggerMiddleware } from './main/factories/middlewares/makeHttpLoggerMiddleware.js';
+import { makeCorsMiddleware } from '@/main/factories/middlewares/makeCorsMiddleware.js';
 
 const app = express();
 
 app.use(makeHttpLoggerMiddleware());
+app.use(makeCorsMiddleware());
+
 app.use(express.json());
 
 app.get('/ping', (_req, res) => {

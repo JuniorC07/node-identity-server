@@ -45,7 +45,6 @@ export class KnexAuthorizationCodesRepository implements IAuthorizationCodesRepo
 
   async consume(input: ConsumeAuthorizationCodeInput): Promise<boolean> {
     const changes = {
-      used_at: input.consumedAt,
       approved_at: input.status === 'approved' ? input.consumedAt : null,
       denied_at: input.status === 'denied' ? input.consumedAt : null,
     };

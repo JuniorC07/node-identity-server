@@ -61,3 +61,26 @@ export function getAbsoluteUrlEnv(name: string, defaultValue: string): string {
     throw new Error(`${name} must be an absolute URL`, { cause: error });
   }
 }
+
+export function getOriginEnv(name: string, defaultValue: string): string {
+  const value = getEnvOrDefault(name, defaultValue);
+
+  try {
+    const url = new URL(value);
+
+    if (
+      !['http:', 'https:'].includes(url.protocol) ||
+      url.pathname !== '/' ||
+      url.search ||
+      url.hash
+    ) {
+      throw new Error('Invalid origin');
+    }
+
+    return url.origin;
+  } catch (error) {
+    throw new Error(`${name} must be an HTTP origin without path, query, or fragment`, {
+      cause: error,
+    });
+  }
+}

@@ -19,6 +19,8 @@ describe('VerifyAccessTokenUseCase', () => {
       issuer: 'https://identity.example.com',
       subject: 'user-id',
       sessionId: 'session-id',
+      clientId: 'client-id',
+      scopes: ['openid', 'profile', 'email'],
       audience: ['example-service'],
       issuedAt: new Date('2026-08-04T12:00:00.000Z'),
       expiresAt: new Date('2026-08-04T12:10:00.000Z'),
@@ -29,7 +31,11 @@ describe('VerifyAccessTokenUseCase', () => {
       audience: claims.audience,
       issuedAt: claims.issuedAt,
       expiresAt: claims.expiresAt,
-      claims: { sid: claims.sessionId },
+      claims: {
+        sid: claims.sessionId,
+        client_id: claims.clientId,
+        scope: claims.scopes.join(' '),
+      },
     });
     const tokenVerifier: ITokenVerifierService = { verify };
     const useCase = new VerifyAccessTokenUseCase(tokenVerifier);
@@ -78,7 +84,55 @@ describe('VerifyAccessTokenUseCase', () => {
         audience: ['example-service'],
         issuedAt: new Date('2026-08-04T12:00:00.000Z'),
         expiresAt: new Date('2026-08-04T12:10:00.000Z'),
-        claims: { sid },
+        claims: {
+          sid,
+          client_id: 'client-id',
+          scope: 'openid profile',
+        },
+      }),
+    };
+    const useCase = new VerifyAccessTokenUseCase(tokenVerifier);
+
+    await expect(
+      useCase.execute({ accessToken: 'signed-access-token', audience: 'example-service' })
+    ).rejects.toBeInstanceOf(InvalidAccessTokenError);
+  });
+
+  it.each([undefined, '', 123])('should reject an invalid client_id claim', async (clientId) => {
+    const tokenVerifier: ITokenVerifierService = {
+      verify: vi.fn<ITokenVerifierService['verify']>().mockResolvedValue({
+        issuer: 'https://identity.example.com',
+        subject: 'user-id',
+        audience: ['example-service'],
+        issuedAt: new Date('2026-08-04T12:00:00.000Z'),
+        expiresAt: new Date('2026-08-04T12:10:00.000Z'),
+        claims: {
+          sid: 'session-id',
+          client_id: clientId,
+          scope: 'openid profile',
+        },
+      }),
+    };
+    const useCase = new VerifyAccessTokenUseCase(tokenVerifier);
+
+    await expect(
+      useCase.execute({ accessToken: 'signed-access-token', audience: 'example-service' })
+    ).rejects.toBeInstanceOf(InvalidAccessTokenError);
+  });
+
+  it.each([undefined, '', 123])('should reject an invalid scope claim', async (scope) => {
+    const tokenVerifier: ITokenVerifierService = {
+      verify: vi.fn<ITokenVerifierService['verify']>().mockResolvedValue({
+        issuer: 'https://identity.example.com',
+        subject: 'user-id',
+        audience: ['example-service'],
+        issuedAt: new Date('2026-08-04T12:00:00.000Z'),
+        expiresAt: new Date('2026-08-04T12:10:00.000Z'),
+        claims: {
+          sid: 'session-id',
+          client_id: 'client-id',
+          scope,
+        },
       }),
     };
     const useCase = new VerifyAccessTokenUseCase(tokenVerifier);
